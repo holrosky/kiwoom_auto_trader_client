@@ -1360,11 +1360,9 @@ class Strategy():
                         (info['macd_cross_type'] == 'dead_cross' and pre_val > 0 and current_val < 0):
 
                     self.telegram_msg += '==============\n'
-
                     self.telegram_msg += '지표명 : ' + info['name'] + '\n'
-
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
-
+                    self.telegram_msg += '봉타입 : 실시간\n' if info['time_type'] == 'real' else '봉타입 : 직전봉\n'
                     self.telegram_msg += '크로스타입 : 골든크로스\n' if info['macd_cross_type'] == 'golden_cross' else '크로스타입 : 데드크로스\n'
 
                     if info['time_type'] == 'real':
