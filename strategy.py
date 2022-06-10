@@ -336,6 +336,7 @@ class Strategy():
                                     for each in enter_list:
                                         if self.indicator_check(each) == self.CONDITION_FAIL:
                                             enter_meet = False
+                                            break
 
 
                                     if enter_meet:
