@@ -1313,8 +1313,6 @@ class Strategy():
 
             elif info['name'] == 'MACD 크로스':
                 df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
-                MACD_name = 'MACD_' + info['macd_short'] + '_' + info['macd_long'] + '_' + info['macd_signal']
-                MACD_signal_name = 'MACD_signal_' + info['macd_short'] + '_' + info['macd_long'] + '_' + info['macd_signal']
                 MACD_Osc_name = 'MACD_Osc_' + info['macd_short'] + '_' + info['macd_long'] + '_' + info['macd_signal']
                 #df = self.indicator.get_macd(df, float(info['macd_short']), float(info['macd_long']), float(info['macd_signal']))
 
@@ -1334,8 +1332,31 @@ class Strategy():
                     else:
                         return self.CONDITION_FAIL
 
-                if (info['macd_cross_type'] == 'golden_cross' and df[MACD_Osc_name].iloc[-3] < 0 and df[MACD_Osc_name].iloc[-2] > 0) or \
-                        (info['macd_cross_type'] == 'dead_cross' and df[MACD_Osc_name].iloc[-3] > 0 and df[MACD_Osc_name].iloc[-2] < 0):
+                current_val = 0
+                pre_val = 0
+
+                num_of_skip = 0
+
+                if info['time_type'] == 'real':
+                    start_index = 1
+                else:
+                    start_index = 2
+
+                for i in range(start_index, len(df)):
+                    if current_val == 0 :
+                        if df[MACD_Osc_name].iloc[i * -1] != 0:
+                            current_val = df[MACD_Osc_name].iloc[i * -1]
+                        else:
+                            num_of_skip += 1
+                    else:
+                        if df[MACD_Osc_name].iloc[i * -1] != 0:
+                            pre_val = df[MACD_Osc_name].iloc[i * -1]
+                            break
+                        else:
+                            num_of_skip += 1
+
+                if (info['macd_cross_type'] == 'golden_cross' and pre_val < 0 and current_val > 0) or \
+                        (info['macd_cross_type'] == 'dead_cross' and pre_val > 0 and current_val < 0):
 
                     self.telegram_msg += '==============\n'
 
@@ -1345,13 +1366,14 @@ class Strategy():
 
                     self.telegram_msg += '크로스타입 : 골든크로스\n' if info['macd_cross_type'] == 'golden_cross' else '크로스타입 : 데드크로스\n'
 
-                    self.telegram_msg += '두번째 전봉 MACD : ' + str(df[MACD_name].iloc[-3]) + '\n'
-                    self.telegram_msg += '두번째 전봉 MACD signal : ' + str(df[MACD_signal_name].iloc[-3]) + '\n'
-                    self.telegram_msg += '두번째 전봉 MACD Osc : ' + str(df[MACD_Osc_name].iloc[-3]) + '\n'
+                    if info['time_type'] == 'real':
+                        self.telegram_msg += '현재봉 MACD Osc : ' + str(current_val) + '\n'
+                        self.telegram_msg += '직전봉 MACD Osc : ' + str(pre_val) + '\n'
+                    else:
+                        self.telegram_msg += '직전봉 MACD Osc : ' + str(current_val) + '\n'
+                        self.telegram_msg += '두번 전 봉 MACD Osc : ' + str(pre_val) + '\n'
 
-                    self.telegram_msg += '첫번째 전봉 MACD : ' + str(df[MACD_name].iloc[-2]) + '\n'
-                    self.telegram_msg += '첫번째 전봉 MACD signal : ' + str(df[MACD_signal_name].iloc[-2]) + '\n'
-                    self.telegram_msg += '두번째 전봉 MACD Osc : ' + str(df[MACD_Osc_name].iloc[-2]) + '\n'
+                    self.telegram_msg += 'Osc 값이 0으로 스킵된 봉 수 : ' + str(num_of_skip) + '\n'
 
                     return self.CONDITION_MEET
 
