@@ -138,11 +138,17 @@ class KiwoomAutoTrader():
                                     elif each_indicator['left_indicator_time_type'] == 'min':
                                         min_set.add(int(each_indicator['left_indicator_unit']))
 
+                                    elif each_indicator['left_indicator_time_type'] == 'day':
+                                        day_dataframe_needed = True
+
                                     if each_indicator['right_indicator_time_type'] == 'tick':
                                         tick_set.add(int(each_indicator['right_indicator_unit']))
 
                                     elif each_indicator['right_indicator_time_type'] == 'min':
                                         min_set.add(int(each_indicator['right_indicator_unit']))
+
+                                    elif each_indicator['right_indicator_time_type'] == 'day':
+                                        day_dataframe_needed = True
                                 except Exception as e:
                                     pass
                                 try:
@@ -151,6 +157,9 @@ class KiwoomAutoTrader():
 
                                     elif each_indicator['indicator_time_type'] == 'min':
                                         min_set.add(int(each_indicator['indicator_unit']))
+
+                                    elif each_indicator['indicator_time_type'] == 'day':
+                                        day_dataframe_needed = True
                                 except Exception as e:
                                     pass
 
