@@ -40,8 +40,7 @@ class Parabolic():
             else:
                 if high > self.ep:
                     self.ep = high
-                    if self.af + self.af_step <= self.max_af:
-                        self.af = self.af + self.af_step
+                    self.af = min(self.af + self.af_step, self.max_af)
 
         elif self.trend == 'bear':
             self.pars = round(self.pars - (self.af * (self.pars - self.ep)), 2)
@@ -56,13 +55,7 @@ class Parabolic():
             else:
                 if low < self.ep:
                     self.ep = low
-                    if self.af + self.af_step <= self.max_af:
-                        self.af = self.af + self.af_step
-
-        # if df['PSARdir'].iloc[a - 1] == 'bull' and df['PSARdir'].iloc[a] == 'bear':
-        #     df['cross'].iloc[a] = 'dead_cross'
-        # elif df['PSARdir'].iloc[a - 1] == 'bear' and df['PSARdir'].iloc[a] == 'bull':
-        #     df['cross'].iloc[a] = 'golden_cross'
+                    self.af = min(self.af + self.af_step, self.max_af)
 
 
         return self.pars, self.ep, self.af

@@ -108,10 +108,19 @@ class KiwoomAutoTrader():
         try:
             while True:
                 if self.load_needed:
-                    with open("setting.json", "r", encoding='utf-8') as st_json:
-                        json_data = json.load(st_json)
+                    error = True
 
-                    json_arr = json_data['strategy_list']
+                    while error:
+                        with open("setting.json", "r", encoding='utf-8') as st_json:
+                            json_data = json.load(st_json)
+
+                        try:
+                            json_arr = json_data['strategy_list']
+                            error = False
+                        except Exception as e:
+                            exc_type, exc_obj, exc_tb = sys.exc_info()
+                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                            print(e, fname, exc_tb.tb_lineno)
 
                     tick_set = set()
                     min_set = set()
@@ -633,8 +642,10 @@ class KiwoomAutoTrader():
 
     def print_chart_data(self, msg):
         print(self.get_df(msg['type'], msg['unit']))
-        for each in self.stretegy_list:
-            each.print_chart_data()
+
+    def save_chart_data(self, msg):
+        df = self.get_df(msg['type'], msg['unit'])
+        df.to_csv(str(self.sCode) + '_' + str(msg['type']) + '_' + str(msg['unit']) + '.csv')
 
     def send_telegram(self, msg):
         self.telegram.send_message(msg)
@@ -643,7 +654,7 @@ class KiwoomAutoTrader():
         self.stretegy_list.append(strategy.Strategy(self, len(self.stretegy_list)))
 
     def remove_strategy(self, position):
-        if self.stretegy_list[position].has_position:
+        if self.stretegy_list[position].has_position and not self.stretegy_list[position].is_virtual_trade() and not self.stretegy_list[position].is_simulation_strategy:
             temp_msg = {}
             temp_msg['command'] = 'remove_result_from_auto_trader'
             temp_msg['position'] = position
@@ -652,17 +663,10 @@ class KiwoomAutoTrader():
             self.aws_mqtt.publish_message(temp_msg)
 
         else:
-            last_position = str(len(self.stretegy_list) - 1)
-            last_position_acc_num = self.stretegy_list[-1].trade_account
-            self.stretegy_list.pop(position)
             for each in self.stretegy_list:
                 each.remove_strategy(position)
-            with open("position.json", "r", encoding="UTF8") as st_json:
-                json_data = json.load(st_json)
-            del json_data[last_position_acc_num][last_position]
 
-            with open('position.json', 'w', encoding="UTF8") as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=4)
+            self.stretegy_list.pop(position)
 
             temp_msg = {}
             temp_msg['command'] = 'remove_result_from_auto_trader'

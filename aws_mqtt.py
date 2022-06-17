@@ -69,6 +69,8 @@ class AWS_mqtt():
         try:
             message_string = message.payload
 
+
+
             if message_string[0] == 'b':
 
                 message_string = message_string[1:]
@@ -95,6 +97,8 @@ class AWS_mqtt():
                 with open('setting.json', 'w', encoding="UTF8") as f:
                     json.dump(message_to_json, f, ensure_ascii=False, indent=4)
 
+                time.sleep(0.1)
+
                 message_to_json['command'] = 'json_update_from_auto_trader'
                 self.publish_message(message_to_json)
 
@@ -109,6 +113,9 @@ class AWS_mqtt():
                 self.parent.remove_strategy(int(message_to_json['position']))
 
             elif message_to_json['command'] == 'add_strategy_from_android':
+                while self.parent.load_needed:
+                    time.sleep(0.1)
+                print('adding')
                 self.parent.add_strategy()
 
             elif message_to_json['command'] == 'get_profit_from_android':
@@ -130,8 +137,10 @@ class AWS_mqtt():
                 self.publish_message(temp)
 
             elif message_to_json['command'] == 'print_chart_data':
-
                 self.parent.print_chart_data(message_to_json)
+
+            elif message_to_json['command'] == 'save_chart_data':
+                self.parent.save_chart_data(message_to_json)
 
             elif message_to_json['command'] == 'length_require_from_android':
                 temp = {}

@@ -8,7 +8,7 @@ import time
 
 import indicator
 
-# MNQM22/sinbokli/test/asdjop
+# MNQU22/sinbokli/test/asdjop
 # {
 #   "command": "print_chart_data",
 #   "type": "min",
@@ -139,6 +139,9 @@ class Strategy():
         self.excel_enter_indicator = ''
         self.excel_clear_indicator = ''
 
+        self.is_there_start_for_prev_minus_current = False
+        self.is_prev_minus_current_activated = True
+
         self.load_strategy()
 
     def load_strategy(self):
@@ -166,12 +169,25 @@ class Strategy():
             except Exception as e:
                 print(e)
 
-            self.set_position_info()
+            with open("position.json", "r", encoding="UTF8") as st_json:
+                json_data = json.load(st_json)
+
+            if str(self.position) not in json_data[self.trade_account]:
+                json_data[self.trade_account][str(self.position)] = {}
+            if 'quant' not in json_data[self.trade_account][str(self.position)]:
+                json_data[self.trade_account][str(self.position)]['quant'] = 0
+            if 'avg_price' not in json_data[self.trade_account][str(self.position)]:
+                json_data[self.trade_account][str(self.position)]['avg_price'] = 0
+
+            with open('position.json', 'w', encoding="UTF8") as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+
 
             if not self.running_status and self.strategy_json['running_status'] == 'true':
             #if self.strategy_json != json_arr[self.position]:
                 print('load_needed')
-
+                self.set_position_info()
                 self.profit_limit_flag = False
                 self.time_range_out_msg_sent = False
                 self.time_range_in_msg_sent = False
@@ -209,6 +225,9 @@ class Strategy():
                     'PARABOLIC': {},
                     'MACD': {}
                 }
+
+                self.is_there_start_for_prev_minus_current = False
+                self.is_prev_minus_current_activated = True
 
                 for k, v in temp.items():
                     enter_list = self.strategy_json[k]
@@ -288,6 +307,10 @@ class Strategy():
 
                         elif each['name'] == '파라볼릭':
                             self.indicator_dict['PARABOLIC'][each['indicator_time_type'] + '_' + each['indicator_unit'] + '_' + each['prabolic_value_one'] + '_' + each['prabolic_value_two']] = False
+
+                        elif each['name'] == '직전봉-현재가' and each['is_start'] == 'true':
+                            self.is_there_start_for_prev_minus_current = True
+                            self.is_prev_minus_current_activated = False
 
                         self.indicator_dict_already_false = True
 
@@ -376,7 +399,7 @@ class Strategy():
 
                                             self.enter_position_req()
 
-
+                                        break
 
                                 self.reset_cross_check()
 
@@ -526,7 +549,7 @@ class Strategy():
                     self.telegram_msg += '가장 최근 봉시간(1) : ' + left_df['date'].iloc[-1] + '\n'
                     self.telegram_msg += '가장 최근 봉시간(2) : ' + right_df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['left_indicator_unit'] + str(
                         word_dict[info['left_indicator_time_type']]) + '봉 ' + left_col_name + ' : ' + str(
@@ -632,7 +655,7 @@ class Strategy():
                     else:
                         self.telegram_msg += '크로스 타입 : 데드크로스\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['left_indicator_unit'] + str(
                         word_dict[info['left_indicator_time_type']]) + '봉 기준선 ' + left_col_name + ' : ' + str(
@@ -730,7 +753,7 @@ class Strategy():
 
                     word_ohcl_dict = {'open': '시가', 'high': '고가', 'close': '종가', 'low': '저가'}
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
                         word_dict[info['indicator_time_type']]) + '봉 기준선 ' + col_name + ' : ' + str(current_val) + '\n'
@@ -796,7 +819,7 @@ class Strategy():
 
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
                         word_dict[info['indicator_time_type']]) + '봉 기준선 ' + col_name + ' : ' + str(current_val) + '\n'
@@ -968,7 +991,7 @@ class Strategy():
                     word_dict = {'buy': '매수', 'sell': '매도', 'golden_cross': '골든크로스', 'dead_cross': '데드크로스'}
                     self.telegram_msg += '기준 : ' + word_dict[info['prabolic_type']] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     if info['time_type'] == 'real':
                         self.telegram_msg += info['indicator_unit'] + word_dict[
@@ -1052,7 +1075,7 @@ class Strategy():
 
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
                         word_dict[info['indicator_time_type']]) + '봉 ' + col_name + ' 값 : ' + str(
@@ -1102,11 +1125,24 @@ class Strategy():
                     else:
                         return self.CONDITION_FAIL
 
+                else:
+                    if self.is_there_start_for_prev_minus_current:
+                        if self.is_prev_minus_current_activated:
+                            pass
+                        else:
+                            if info['is_start'] == 'true':
+                                pass
+                            else:
+                                return self.CONDITION_PASS
+
                 if ((info['bar_status'] == 'bull' and pre_price_dict['open'] <= pre_price_dict['close']) or \
                     (info['bar_status'] == 'bear' and pre_price_dict['open'] >= pre_price_dict['close']) or \
                     (info['bar_status'] == 'all')) and \
                         (tick_diff_from <= int(diff_val // self.tick_unit) and int(
                             diff_val // self.tick_unit) <= tick_diff_to):
+
+                    if info['is_start'] == 'true':
+                        self.is_prev_minus_current_activated = True
 
                     self.telegram_msg += '==============\n'
 
@@ -1115,7 +1151,7 @@ class Strategy():
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
                     word_ohcl_dict = {'open': '시가', 'high': '고가', 'close': '종가', 'low': '저가', 'middle': '중심가'}
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += '직전봉 가격 기준 : ' + word_ohcl_dict[info['ohcl_type']] + '\n'
                     if info['bar_status'] == 'bull':
@@ -1177,7 +1213,7 @@ class Strategy():
 
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
                         word_dict[info['indicator_time_type']]) + '봉 직전봉 틱차이 : ' + str(
@@ -1226,7 +1262,7 @@ class Strategy():
 
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
                         word_dict[info['indicator_time_type']]) + '봉 현재봉 틱차이 : ' + str(
@@ -1292,7 +1328,7 @@ class Strategy():
 
                     self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
 
-                    word_dict = {'min': '분', 'tick': '틱'}
+                    word_dict = {'day': '일', 'min': '분', 'tick': '틱'}
                     type_word_dict = {'high': '고', 'low': '저'}
 
                     self.telegram_msg += info['indicator_unit'] + str(
@@ -2304,6 +2340,8 @@ class Strategy():
 
         now = datetime.datetime.now()
         self.telegram_msg += '==============\n'
+        self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
+        self.telegram_msg += '==============\n'
         self.telegram_msg += '전략 확인 종료 시간 : \n' + now.strftime('%Y-%m-%d %H:%M:%S.%f') + '\n'
 
         print('전략 확인 종료 시간 : ', now.strftime('%Y-%m-%d %H:%M:%S.%f'))
@@ -2339,14 +2377,14 @@ class Strategy():
     def clear_position_req(self, from_user):
         try:
             if from_user:
-                self.telegram_msg = ''
+                self.excel_clear_indicator = ''
 
                 if self.is_virtual_trade():
-                    self.telegram_msg += '!!!가상매매 중입니다!!!\n'
+                    self.excel_clear_indicator += '!!!가상매매 중입니다!!!\n'
                 if self.is_simulation_strategy:
-                    self.telegram_msg += '!!!시뮬레이션 전략입니다!!!\n'
+                    self.excel_clear_indicator += '!!!시뮬레이션 전략입니다!!!\n'
 
-                self.telegram_msg += '유저에 의해 강제 청산 되었습니다.\n'
+                self.excel_clear_indicator += '유저에 의해 강제 청산 되었습니다.\n'
 
             else:
                 if self.is_virtual_trade():
@@ -2356,6 +2394,8 @@ class Strategy():
 
                 now = datetime.datetime.now()
                 self.telegram_msg += '==============\n'
+                self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
+                self.telegram_msg += '==============\n'
                 self.telegram_msg += '전략 확인 종료 시간 : \n' + now.strftime('%Y-%m-%d %H:%M:%S.%f') + '\n'
 
                 self.excel_clear_indicator = self.telegram_msg
@@ -2364,17 +2404,17 @@ class Strategy():
 
             if self.is_simulation_strategy or self.is_virtual_trade():
                 if self.has_position:
-                    current_price = self.parent.get_current_price()
-                    profit = abs(current_price - self.enter_price)
+                    self.current_price = self.parent.get_current_price()
+                    profit = abs(self.current_price - self.enter_price)
                     profit = int(profit // self.tick_unit)
                     if self.enter_type == '매수':
-                        if self.enter_price < current_price:
+                        if self.enter_price < self.current_price:
                             result = '익절'
                         else:
                             result = '손절'
                             profit = profit * -1
                     elif self.enter_type == '매도':
-                        if self.enter_price > current_price:
+                        if self.enter_price > self.current_price:
                             result = '익절'
                         else:
                             result = '손절'
@@ -2385,19 +2425,19 @@ class Strategy():
 
                     now = datetime.datetime.now()
                     self.clear_time_for_excel = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-
-                    self.telegram_msg = '!!!시뮬레이션 전략입니다!!!\n' if self.is_simulation_strategy else ''
-                    self.telegram_msg += '!!!가상매매 중입니다!!!\n' if self.is_virtual_trade() else ''
-                    self.telegram_msg += '!!!AI 청산입니다!!!\n' if self.is_there_ai_clear else ''
-                    self.telegram_msg += '현재 포지션을 청산합니다. (' + result + ')\n'
-                    self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
-                    self.telegram_msg += '계약 수 : ' + str(self.quant) + '\n'
-                    self.telegram_msg += '진입가 : ' + str(self.enter_price) + '\n'
-                    self.telegram_msg += '현재가 : ' + str(current_price) + '\n'
-                    self.telegram_msg += '청산 수익 틱 : ' + str(profit) + '\n'
-                    self.telegram_msg += '해당 전략 누적 수익 틱 : ' + str(self.current_total_profit_tick) + '\n'
-
-                    self.parent.send_telegram(self.telegram_msg)
+                    #
+                    # self.telegram_msg = '!!!시뮬레이션 전략입니다!!!\n' if self.is_simulation_strategy else ''
+                    # self.telegram_msg += '!!!가상매매 중입니다!!!\n' if self.is_virtual_trade() else ''
+                    # self.telegram_msg += '!!!AI 청산입니다!!!\n' if self.is_there_ai_clear else ''
+                    # self.telegram_msg += '현재 포지션을 청산합니다. (' + result + ')\n'
+                    # self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
+                    # self.telegram_msg += '계약 수 : ' + str(self.quant) + '\n'
+                    # self.telegram_msg += '진입가 : ' + str(self.enter_price) + '\n'
+                    # self.telegram_msg += '현재가 : ' + str(current_price) + '\n'
+                    # self.telegram_msg += '청산 수익 틱 : ' + str(profit) + '\n'
+                    # self.telegram_msg += '해당 전략 누적 수익 틱 : ' + str(self.current_total_profit_tick) + '\n'
+                    #
+                    # self.parent.send_telegram(self.telegram_msg)
 
                     info = {}
 
@@ -2444,9 +2484,7 @@ class Strategy():
 
                         self.parent.aws_mqtt.publish_message(temp)
             else:
-                print('debug-4')
                 if self.has_position:
-                    print('debug-5')
                     self.need_to_load_position = True
 
                     if from_user:
@@ -2507,6 +2545,8 @@ class Strategy():
 
                 elif data['type'] == self.waiting_enter_type and self.has_position and int(data['sum_of_clear_quant']) == int(self.quant):
                     real_profit = int((data['sum_of_profit'] // self.tick_value) // int(data['sum_of_clear_quant']))
+
+                    self.current_price = self.parent.get_current_price()
 
                     program_profit = abs(self.current_price - self.enter_price)
                     program_profit = int(program_profit // self.tick_unit)
@@ -2609,37 +2649,39 @@ class Strategy():
         self.checking_real_position_running = False
 
     def set_position_info(self):
-        with open("position.json", "r", encoding="UTF8") as st_json:
-            json_data = json.load(st_json)
+        try:
+            with open("position.json", "r", encoding="UTF8") as st_json:
+                json_data = json.load(st_json)
 
-        if str(self.position) not in json_data[self.trade_account]:
-            json_data[self.trade_account][str(self.position)] = {}
-        if 'quant' not in json_data[self.trade_account][str(self.position)]:
-            json_data[self.trade_account][str(self.position)]['quant'] = 0
-        if 'avg_price' not in json_data[self.trade_account][str(self.position)]:
-            json_data[self.trade_account][str(self.position)]['avg_price'] = 0
+            if json_data[self.trade_account][str(self.position)]['quant'] == 0:
+                self.has_position = False
+                self.enter_type = ''
+                self.enter_price = 0
+            else:
+                self.has_position = True
 
-        with open('position.json', 'w', encoding="UTF8") as f:
-            json.dump(json_data, f, ensure_ascii=False, indent=4)
+                self.enter_type = '매도' if json_data[self.trade_account][str(self.position)]['quant'] < 0 else '매수'
+                self.last_enter_type = self.enter_type
+                self.enter_price = json_data[self.trade_account][str(self.position)]['avg_price']
+                self.quant = abs(json_data[self.trade_account][str(self.position)]['quant'])
 
-        if json_data[self.trade_account][str(self.position)]['quant'] == 0:
-            self.has_position = False
-            self.enter_type = ''
-            self.enter_price = 0
-        else:
-            self.has_position = True
-
-            self.enter_type = '매도' if json_data[self.trade_account][str(self.position)]['quant'] < 0 else '매수'
-            self.last_enter_type = self.enter_type
-            self.enter_price = json_data[self.trade_account][str(self.position)]['avg_price']
-            self.quant = abs(json_data[self.trade_account][str(self.position)]['quant'])
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(e, fname, exc_tb.tb_lineno)
 
     def check_acc_num_changed(self, acc_num):
         if acc_num != self.trade_account and self.trade_account:
             with open("position.json", "r", encoding="UTF8") as st_json:
                 json_data = json.load(st_json)
 
+            temp = json_data[self.trade_account][str(self.position)]
+
             del json_data[self.trade_account][str(self.position)]
+
+            self.trade_account = acc_num
+
+            json_data[self.trade_account][str(self.position)] = temp
 
             with open('position.json', 'w', encoding="UTF8") as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
@@ -2661,7 +2703,8 @@ class Strategy():
                     self.telegram_msg += '==============\n'
                     self.telegram_msg += '설정된 최대 손절/익절 값에 도달하여 청산 후 매매를 중지합니다.\n'
 
-                    self.telegram_msg += '현재 청산 이익 틱: ' + str(int(self.current_total_profit_tick + profit)) + '\n'
+                    self.telegram_msg += '현재 청산 이익 틱: ' + str(int(self.current_total_profit_tick)) + '\n'
+                    self.telegram_msg += '현재 매매 이익 틱: ' + str(int(profit)) + '\n'
                     self.telegram_msg += '설정 최대 손절 틱 : ' + str(self.max_loss) + '\n'
                     self.telegram_msg += '설정 최대 익절 틱 : ' + str(self.max_profit) + '\n'
 
@@ -2795,15 +2838,17 @@ class Strategy():
             print(e, fname, exc_tb.tb_lineno)
 
     def remove_strategy(self, removed_position):
-        if self.position > removed_position:
+        if self.position >= removed_position:
             with open("position.json", "r", encoding="UTF8") as st_json:
                 json_data = json.load(st_json)
 
             position_info = json_data[self.trade_account][str(self.position)]
 
-            self.position -= 1
+            del json_data[self.trade_account][str(self.position)]
 
-            json_data[self.trade_account][str(self.position)] = position_info
+            if self.position != removed_position:
+                self.position -= 1
+                json_data[self.trade_account][str(self.position)] = position_info
 
             with open('position.json', 'w', encoding="UTF8") as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
@@ -2816,10 +2861,6 @@ class Strategy():
             return check_time >= begin_time and check_time <= end_time
         else:  # crosses midnight
             return check_time >= begin_time or check_time <= end_time
-
-    def print_chart_data(self):
-        for k, v in self.parabolic_dict.items():
-            print(v)
 
     def test_thread(self):
         while True:

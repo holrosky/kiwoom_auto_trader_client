@@ -1,4 +1,5 @@
 import datetime
+import json
 import threading
 import time
 from collections import deque
@@ -17,7 +18,11 @@ class ExcelUpdater():
         json_file_name = 'excel_credential.json'
         credentials = ServiceAccountCredentials.from_json_keyfile_name(json_file_name, scope)
         gc = gspread.authorize(credentials)
-        spreadsheet_url = 'https://docs.google.com/spreadsheets/d/1hITBvQyCT8Jk_0fk8Hurg1ZXuz9AajuzCX5wMsey3t8/edit#gid=0'
+
+        with open("config.json", "r", encoding="UTF8") as st_json:
+            json_data = json.load(st_json)
+
+        spreadsheet_url = json_data['excel_url']
         # 스프레스시트 문서 가져오기
         self.doc = gc.open_by_url(spreadsheet_url)
 
