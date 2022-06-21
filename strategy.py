@@ -8,6 +8,9 @@ import time
 
 import indicator
 
+import random
+import string
+
 # MNQU22/sinbokli/test/asdjop
 # {
 #   "command": "print_chart_data",
@@ -136,11 +139,16 @@ class Strategy():
         self.enter_time_for_excel = None
         self.clear_time_for_excel = None
 
+        self.enter_id = ''
+
         self.excel_enter_indicator = ''
         self.excel_clear_indicator = ''
 
         self.is_there_start_for_prev_minus_current = False
         self.is_prev_minus_current_activated = True
+
+        self.profit_total_clear_flag = False
+
 
         self.load_strategy()
 
@@ -156,7 +164,6 @@ class Strategy():
 
             self.check_acc_num_changed(self.strategy_json['trade_account'])
 
-
             try:
                 self.strategy_name = self.strategy_json['strategy_name']
                 self.is_simulation_strategy = True if self.strategy_json['is_simulation'] == 'true' else False
@@ -167,7 +174,9 @@ class Strategy():
                     self.max_profit = int(self.strategy_json['max_profit'])
                 self.trade_time = self.strategy_json['trade_time']
             except Exception as e:
-                print(e)
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e, fname, exc_tb.tb_lineno)
 
             with open("position.json", "r", encoding="UTF8") as st_json:
                 json_data = json.load(st_json)
@@ -178,13 +187,16 @@ class Strategy():
                 json_data[self.trade_account][str(self.position)]['quant'] = 0
             if 'avg_price' not in json_data[self.trade_account][str(self.position)]:
                 json_data[self.trade_account][str(self.position)]['avg_price'] = 0
+            if 'enter_id' not in json_data[self.trade_account][str(self.position)]:
+                json_data[self.trade_account][str(self.position)]['enter_id'] = ''
 
             with open('position.json', 'w', encoding="UTF8") as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
 
+            if not self.running_status and self.strategy_json['running_status'] == 'false':
+                self.set_position_info()
 
-
-            if not self.running_status and self.strategy_json['running_status'] == 'true':
+            elif not self.running_status and self.strategy_json['running_status'] == 'true':
             #if self.strategy_json != json_arr[self.position]:
                 print('load_needed')
                 self.set_position_info()
@@ -229,6 +241,8 @@ class Strategy():
                 self.is_there_start_for_prev_minus_current = False
                 self.is_prev_minus_current_activated = True
 
+                self.profit_total_clear_flag = False
+
                 for k, v in temp.items():
                     enter_list = self.strategy_json[k]
 
@@ -237,7 +251,7 @@ class Strategy():
                             self.is_there_first_meet_virtual_indicator = True
                             self.is_there_box_virtual_indicator = False
 
-                            self.is_first_meet_virtual_indicator_running = True
+                            self.is_first_meet_virtual_indicator_running = True if not self.has_position else False
                             self.is_box_virtual_indicator_running = False
 
                             self.current_total_profit_enter_times = 0
@@ -265,7 +279,7 @@ class Strategy():
                             self.is_there_box_virtual_indicator = True
 
                             self.is_first_meet_virtual_indicator_running = False
-                            self.is_box_virtual_indicator_running = True
+                            self.is_box_virtual_indicator_running = True if not self.has_position else False
 
                             self.current_total_profit_enter_times = 0
                             self.current_total_tick_for_virtual_trade = 0
@@ -334,7 +348,7 @@ class Strategy():
             if not self.need_to_load_position:
                 if not self.is_strategy_loading:
                     if self.running_status:
-                        if (self.is_in_time() or self.is_virtual_trade()) and not self.profit_limit_flag:
+                        if (self.is_in_time() or self.is_virtual_trade()) and not self.profit_limit_flag and not self.profit_total_clear_flag:
                             self.calc_indicators()
 
                             if not self.has_position:
@@ -415,7 +429,7 @@ class Strategy():
 
                                 if self.need_to_clear_position_by_profit_limit():
                                     if self.is_simulation_strategy:
-                                        self.clear_position_req(from_user=False)
+                                        self.clear_position_req()
 
                                     else:
                                         if self.enter_type == '매수':
@@ -425,7 +439,7 @@ class Strategy():
                                             self.waiting_enter_type = '매수'
                                             self.parent.order_queue.append({'type': self.CLEAR_SELL_SIGNAL, 'acc_num': self.trade_account,'quant': self.quant, 'position' : self.position})
 
-                                        self.clear_position_req(from_user=False)
+                                        self.clear_position_req()
 
                                 else:
                                     clear_meet = False
@@ -451,7 +465,7 @@ class Strategy():
                                     if clear_meet:
                                         self.quant_need_update = True
                                         if self.is_simulation_strategy or self.is_virtual_trade():
-                                            self.clear_position_req(from_user=False)
+                                            self.clear_position_req()
 
                                         else:
                                             now = datetime.datetime.now()
@@ -464,7 +478,7 @@ class Strategy():
                                                 self.waiting_enter_type = '매수'
                                                 self.parent.order_queue.append({'type': self.CLEAR_SELL_SIGNAL, 'acc_num': self.trade_account,'quant': self.quant, 'position' : self.position})
 
-                                            self.clear_position_req(from_user=False)
+                                            self.clear_position_req()
 
                         else:
                             if not self.indicator_dict_already_false:
@@ -473,11 +487,11 @@ class Strategy():
                                         self.indicator_dict[k][kk] = False
 
                                 self.indicator_dict_already_false = True
-            else:
-                if not self.checking_real_position_running:
-                    self.checking_real_position_running = True
-                    checking_real_position_thread = threading.Thread(target=self.set_real_position)
-                    checking_real_position_thread.start()
+            # else:
+            #     if not self.checking_real_position_running:
+            #         self.checking_real_position_running = True
+            #         checking_real_position_thread = threading.Thread(target=self.set_real_position)
+            #         checking_real_position_thread.start()
 
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -2338,6 +2352,11 @@ class Strategy():
         else:
             self.need_to_load_position = True
 
+            checking_real_position_thread = threading.Thread(target=self.set_real_position)
+            checking_real_position_thread.start()
+
+        self.enter_id = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(10))
+
         now = datetime.datetime.now()
         self.telegram_msg += '==============\n'
         self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
@@ -2345,7 +2364,6 @@ class Strategy():
         self.telegram_msg += '전략 확인 종료 시간 : \n' + now.strftime('%Y-%m-%d %H:%M:%S.%f') + '\n'
 
         print('전략 확인 종료 시간 : ', now.strftime('%Y-%m-%d %H:%M:%S.%f'))
-
 
         self.excel_enter_indicator = self.telegram_msg
         self.parent.send_telegram(self.telegram_msg)
@@ -2361,6 +2379,7 @@ class Strategy():
         if self.is_simulation_strategy or self.is_virtual_trade():
             info = {}
 
+            info['enter_id'] = self.enter_id
             info['trade_type'] = '가상매매' if self.is_virtual_trade() else '시뮬레이션'
             info['strategy_name'] = self.strategy_name
             info['acc_num'] = self.trade_account
@@ -2374,7 +2393,7 @@ class Strategy():
 
             self.parent.add_trade_info_to_excel('enter', info)
 
-    def clear_position_req(self, from_user):
+    def clear_position_req(self, from_user=False, profit_total_clear=False, all_clear=False):
         try:
             if from_user:
                 self.excel_clear_indicator = ''
@@ -2439,31 +2458,41 @@ class Strategy():
                     #
                     # self.parent.send_telegram(self.telegram_msg)
 
+                    if profit_total_clear:
+                        self.telegram_msg = '종합 수익 청산합니다.\n'
+                        self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
+                        self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
+
+                        self.excel_clear_indicator = self.telegram_msg
+
+                        self.profit_total_clear_flag = True
+
                     info = {}
 
+                    info['enter_id'] = self.enter_id
                     info['trade_type'] = '가상매매' if self.is_virtual_trade() else '시뮬레이션'
                     info['strategy_name'] = self.strategy_name
                     info['acc_num'] = self.trade_account
                     info['quant'] = self.quant
                     info['clear_type'] = '매도' if self.enter_type == '매수' else '매수'
                     info['clear_time'] = self.clear_time_for_excel
-                    info['clear_price'] = current_price
+                    info['clear_price'] = self.current_price
                     info['order_send_time'] = self.clear_time_for_excel
                     info['order_complete_time'] = self.clear_time_for_excel
                     info['clear_indicator'] = self.excel_clear_indicator
 
-                    self.parent.add_trade_info_to_excel('clear', info)
+                    # self.parent.add_trade_info_to_excel('clear', info)
 
                     info['enter_type'] = '매수' if self.enter_type == '매수' else '매도'
                     info['enter_time'] = self.enter_time_for_excel
                     info['enter_price'] = self.enter_price
                     info['enter_indicator'] = self.excel_enter_indicator
 
-                    info['program_price_profit_tick'] = profit
-                    info['real_price_profit_tick'] = profit
+                    info['program_price_profit_tick'] = str(profit) + '(' + str(profit * self.quant) + ')'
+                    info['real_price_profit_tick'] = str(profit) + '(' + str(profit * self.quant) + ')'
                     info['total_profit_dollar'] = profit * self.tick_value * self.quant
 
-                    self.parent.add_trade_info_to_excel('total', info)
+                    self.parent.add_trade_info_to_excel('clear', info)
 
                     self.update_virtual_trade(profit * self.quant)
 
@@ -2472,22 +2501,35 @@ class Strategy():
                     self.enter_price = 0
 
                     if from_user:
-                        temp = {}
-                        temp['command'] = 'clear_position_from_auto_trader'
-                        temp['result'] = '0'
+                        if not all_clear:
+                            temp = {}
+                            temp['command'] = 'clear_position_from_auto_trader'
+                            temp['result'] = '0'
 
-                        self.parent.aws_mqtt.publish_message(temp)
+                            self.parent.aws_mqtt.publish_message(temp)
+                        else:
+                            self.parent.num_of_all_clear += 1
                 elif from_user:
+                    if not all_clear:
                         temp = {}
                         temp['command'] = 'clear_position_from_auto_trader'
                         temp['result'] = '-1'
 
                         self.parent.aws_mqtt.publish_message(temp)
+
             else:
+                if profit_total_clear:
+                    self.profit_total_clear_flag = True
+
                 if self.has_position:
                     self.need_to_load_position = True
 
-                    if from_user:
+                    checking_real_position_thread = threading.Thread(target=self.set_real_position)
+                    checking_real_position_thread.start()
+
+                    if from_user or profit_total_clear:
+                        print('일괄청산 : ', self.position)
+
                         if self.enter_type == '매수':
                             self.waiting_enter_type = '매도'
                             self.parent.order_queue.append({'type': self.CLEAR_BUY_SIGNAL, 'acc_num': self.trade_account, 'quant': self.quant,'position': self.position})
@@ -2495,19 +2537,32 @@ class Strategy():
                             self.waiting_enter_type = '매수'
                             self.parent.order_queue.append({'type': self.CLEAR_SELL_SIGNAL, 'acc_num': self.trade_account, 'quant': self.quant,'position': self.position})
 
+                        if from_user:
+                            if not all_clear:
+                                self.telegram_msg = '현재 포지션을 강제 청산합니다.\n'
+                                self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
+                                self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
 
-                        self.telegram_msg = '현재 포지션을 강제 청산합니다.\n'
-                        self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
+                                self.parent.send_telegram(self.telegram_msg)
 
-                        self.parent.send_telegram(self.telegram_msg)
+                                temp = {}
+                                temp['command'] = 'clear_position_from_auto_trader'
+                                temp['result'] = '0'
 
-                        temp = {}
-                        temp['command'] = 'clear_position_from_auto_trader'
-                        temp['result'] = '0'
+                                self.parent.aws_mqtt.publish_message(temp)
+                            else:
+                                self.parent.num_of_all_clear += 1
 
-                        self.parent.aws_mqtt.publish_message(temp)
+                        if profit_total_clear:
+
+                            self.telegram_msg = '종합 수익 청산합니다.\n'
+                            self.telegram_msg += '전략 이름 : ' + self.strategy_name + '\n'
+                            self.telegram_msg += '해당 전략 기존 총 누적 틱 : \n' + str(self.current_total_profit_tick) + '\n'
+
+                        self.excel_clear_indicator = self.telegram_msg
 
                 elif from_user:
+                    if not all_clear:
                         temp = {}
                         temp['command'] = 'clear_position_from_auto_trader'
                         temp['result'] = '-1'
@@ -2561,6 +2616,7 @@ class Strategy():
 
                     info = {}
 
+                    info['enter_id'] = self.enter_id
                     info['trade_type'] = '진입'
                     info['strategy_name'] = self.strategy_name
 
@@ -2577,18 +2633,18 @@ class Strategy():
                     info['order_complete_time'] = data['order_complete_time']
                     info['clear_indicator'] = self.excel_clear_indicator
 
-                    self.parent.add_trade_info_to_excel('clear', info)
+                    # self.parent.add_trade_info_to_excel('clear', info)
 
                     info['enter_type'] = '매수' if self.enter_type == '매수' else '매도'
                     info['enter_time'] = self.enter_time_for_excel
                     info['enter_price'] = self.enter_price
                     info['enter_indicator'] = self.excel_enter_indicator
 
-                    info['program_price_profit_tick'] = program_profit
-                    info['real_price_profit_tick'] = real_profit
+                    info['program_price_profit_tick'] = str(program_profit) + '(' + str(program_profit * self.quant) + ')'
+                    info['real_price_profit_tick'] = str(real_profit) + '(' + str(real_profit * self.quant) + ')'
                     info['total_profit_dollar'] = data['sum_of_profit']
 
-                    self.parent.add_trade_info_to_excel('total', info)
+                    self.parent.add_trade_info_to_excel('clear', info)
 
                     self.current_total_profit_tick += real_profit
 
@@ -2600,6 +2656,7 @@ class Strategy():
                     temp['acc_num'] = self.trade_account
                     temp['position'] = self.position
                     temp['quant'] = self.quant * -1 if self.enter_type == '매수' else self.quant
+                    temp['enter_id'] = self.enter_id
 
                     self.parent.process_complete_order(temp)
 
@@ -2608,12 +2665,16 @@ class Strategy():
                     self.need_to_load_position = False
 
                 elif data['type'] == self.waiting_enter_type and not self.has_position and int(data['sum_of_enter_quant']) == int(self.quant):
+
+                    self.enter_id = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(10))
+
                     temp = {}
 
                     temp['acc_num'] = self.trade_account
                     temp['avg_price'] = float(data['avg_price'])
                     temp['position'] = self.position
                     temp['quant'] = int(data['sum_of_enter_quant']) if data['type'] == '매수' else int(data['sum_of_enter_quant']) * -1
+                    temp['enter_id'] = self.enter_id
 
                     self.parent.process_complete_order(temp)
 
@@ -2622,8 +2683,10 @@ class Strategy():
                     now = datetime.datetime.now()
                     self.enter_time_for_excel = now.strftime('%Y-%m-%d %H:%M:%S.%f')
 
+
                     info = {}
 
+                    info['enter_id'] = self.enter_id
                     info['trade_type'] = '진입'
                     info['strategy_name'] = self.strategy_name
                     info['acc_num'] = self.trade_account
@@ -2637,8 +2700,6 @@ class Strategy():
 
                     self.parent.add_trade_info_to_excel('enter', info)
 
-                    now = datetime.datetime.now()
-
                     self.need_to_load_position = False
                 else:
                     print('putback')
@@ -2646,7 +2707,6 @@ class Strategy():
                     time.sleep(0.1)
             else:
                 time.sleep(0.01)
-        self.checking_real_position_running = False
 
     def set_position_info(self):
         try:
@@ -2657,6 +2717,7 @@ class Strategy():
                 self.has_position = False
                 self.enter_type = ''
                 self.enter_price = 0
+                self.enter_id = ''
             else:
                 self.has_position = True
 
@@ -2664,11 +2725,26 @@ class Strategy():
                 self.last_enter_type = self.enter_type
                 self.enter_price = json_data[self.trade_account][str(self.position)]['avg_price']
                 self.quant = abs(json_data[self.trade_account][str(self.position)]['quant'])
+                self.enter_id = json_data[self.trade_account][str(self.position)]['enter_id']
 
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(e, fname, exc_tb.tb_lineno)
+
+    def get_current_profit(self):
+        if self.has_position:
+            self.current_price = self.parent.get_current_price()
+
+            profit = abs(self.current_price - self.enter_price)
+            profit = int(profit // self.tick_unit) * self.quant
+            if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
+                    self.enter_type == '매도' and self.enter_price < self.current_price):
+                profit = profit * -1
+
+            return profit
+        else:
+            return 0
 
     def check_acc_num_changed(self, acc_num):
         if acc_num != self.trade_account and self.trade_account:
@@ -2768,7 +2844,7 @@ class Strategy():
                         self.waiting_enter_type = '매수'
                         self.parent.order_queue.append({'type': self.CLEAR_SELL_SIGNAL, 'acc_num': self.trade_account, 'quant': self.quant,'position': self.position})
 
-                    self.clear_position_req(from_user=False)
+                    self.clear_position_req()
 
             return is_in_time
         except Exception as e:

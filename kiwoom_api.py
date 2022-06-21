@@ -412,10 +412,26 @@ class KiwoomAPI():
         errorCode = self.kiwoom.SendOrder(sRQName, sScreenNo, sAccNo, nOrderType, sCode, nQty, sPrice, sStop, sHogaGb,
                                           sOrgOrderNo)
 
-        if errorCode != ErrorCode.OP_ERR_NONE:
-            print(KiwoomProcessingError("sendOrder(): " + ErrorCode.CAUSE[errorCode]))
+        print('error code : ', errorCode)
 
-        else:
+        with open("log.txt", "a", encoding="UTF8") as log:
+
+            if errorCode != ErrorCode.OP_ERR_NONE:
+                log.write("============ 주문 요청 에러 ============\n")
+                log.write(KiwoomProcessingError("주문 에러 : " + ErrorCode.CAUSE[errorCode]))
+                print(KiwoomProcessingError("sendOrder(): " + ErrorCode.CAUSE[errorCode]))
+
+            else:
+                now = datetime.datetime.now()
+                log.write("============ 주문 요청 ============\n")
+                log.write("주문계좌 : " + str(sAccNo) + '\n')
+                if nOrderType == 2:
+                    log.write("주문타입 : 매수\n")
+                else:
+                    log.write("주문타입 : 매도\n")
+                log.write("주문수량 : " + str(nQty) + '\n')
+                log.write("주문시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
+
             self.order_loop = QEventLoop()
             self.order_loop.exec_()
 
@@ -1126,14 +1142,13 @@ class KiwoomAPI():
                 print('진입수량 : ', self.order_dict[order_num]['sum_of_enter_quant'])
                 print('청산수량 : ', self.order_dict[order_num]['sum_of_clear_quant'])
 
-
                 self.order_dict[order_num]['order_complete_time'] = order_complete_time
-
 
                 del self.order_dict[order_num]['sum_of_price']
 
+                acc_num = self.kiwoom.GetChejanData(9201)
 
-                self.parent.complete_order_queue_dict[str(self.kiwoom.GetChejanData(9201))].append(self.order_dict[order_num])
+                self.parent.complete_order_queue_dict[str(acc_num)].append(self.order_dict[order_num])
                 #del self.order_dict[order_num]
 
                 # print('----------------------')
@@ -1142,6 +1157,19 @@ class KiwoomAPI():
                 # print('체결수량 : ', str(self.kiwoom.GetChejanData(911)))
                 # print('주문수량 : ', str(self.kiwoom.GetChejanData(900)))
                 # print('실현손익 : ', str(self.kiwoom.GetChejanData(8018)))
+
+                now = datetime.datetime.now()
+
+                with open("log.txt", "a", encoding="UTF8") as log:
+                    log.write("============ 주문 응답 ============\n")
+                    log.write("주문계좌 : " + str(acc_num) + '\n')
+                    log.write("주문타입 : " + str(self.order_dict[order_num]['type']) + '\n')
+                    log.write("진입수량 : " + str(self.order_dict[order_num]['sum_of_enter_quant']) + '\n')
+                    log.write("청산수량 : " + str(self.order_dict[order_num]['sum_of_clear_quant']) + '\n')
+                    log.write("주문평균가 : " + str(self.order_dict[order_num]['avg_price']) + '\n')
+                    log.write("주문응답시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
+
+
                 self.order_loop.exit()
                 #print(self.parent.complete_order_queue_dict)
 

@@ -149,6 +149,10 @@ class AWS_mqtt():
                 temp['calc_indicators_length'] = str(self.parent.num_of_calc_indicator)
 
                 self.publish_message(temp)
+
+            elif message_to_json['command'] == 'clear_all_position_from_android':
+                self.parent.clear_all_position_from_user()
+
         except Exception as e:
             print(e)
 

@@ -1,5 +1,7 @@
 import datetime
 import json
+import os
+import sys
 import threading
 import time
 from collections import deque
@@ -33,9 +35,14 @@ class ExcelUpdater():
         add_excel_thread = threading.Thread(target=self.add_trade_info_to_excel)
         add_excel_thread.start()
 
+        # worksheet = self.doc.worksheet('종합')
+        # print('hhh : ', worksheet.find("8989898989").row)
+        # worksheet.delete_rows(worksheet.find("8989898989").row)
 
-    def add_trade_info_to_excel_queue(self, type, info):
-        self.queue.append((type, info))
+
+
+    def add_trade_info_to_excel_queue(self, type, info, enter_id):
+        self.queue.append((type, info, enter_id))
         # if type == 'total':
         #     worksheet = self.doc.worksheet('종합')
         # elif type == 'enter' or type == 'clear':
@@ -47,7 +54,6 @@ class ExcelUpdater():
         error_flag = False
         data = tuple()
 
-
         while True:
             try:
                 if error_flag:
@@ -57,10 +63,20 @@ class ExcelUpdater():
                 if self.queue:
                     data = self.queue.popleft()
 
-                    if data[0] == 'total':
-                        worksheet = self.doc.worksheet('종합')
-                    elif data[0] == 'enter' or data[0] == 'clear':
-                        worksheet = self.doc.worksheet('진입/청산')
+                    if data[0] == 'clear':
+                        try:
+                            worksheet = self.doc.worksheet('진입')
+                            worksheet.delete_rows(worksheet.find(data[2]).row)
+
+                        except Exception as e:
+                            exc_type, exc_obj, exc_tb = sys.exc_info()
+                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                            print(e, fname, exc_tb.tb_lineno)
+
+                        worksheet = self.doc.worksheet('청산')
+
+                    elif data[0] == 'enter':
+                        worksheet = self.doc.worksheet('진입')
 
                     worksheet.insert_row(data[1], 2)
                     error_flag = False

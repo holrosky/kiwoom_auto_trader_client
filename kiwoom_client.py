@@ -55,6 +55,7 @@ class KiwoomAutoTrader():
 
         self.already_calced_list = []
         self.num_of_calc_indicator = 0
+        self.current_price = 0
 
         self.trade_profit_dict = {}
 
@@ -64,6 +65,12 @@ class KiwoomAutoTrader():
 
         self.load_needed = True
         self.first_run = True
+
+        self.profit_total_clear_running = False
+        self.profit_total_clear_profit = 0
+        self.profit_total_clear_loss = 0
+
+        self.num_of_all_clear = 0
 
         self.tick_dataframe_dict = {}
         self.tick_unit_list = []
@@ -121,6 +128,14 @@ class KiwoomAutoTrader():
                             exc_type, exc_obj, exc_tb = sys.exc_info()
                             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                             print(e, fname, exc_tb.tb_lineno)
+
+                    self.profit_total_clear_running = True if json_data['profit_total_clear']['is_running'] == 'true' else False
+                    self.profit_total_clear_profit = int(json_data['profit_total_clear']['profit'])
+                    self.profit_total_clear_loss = int(json_data['profit_total_clear']['loss'])
+
+                    if not self.profit_total_clear_running:
+                        for each in self.stretegy_list:
+                            each.profit_total_clear_flag = False
 
                     tick_set = set()
                     min_set = set()
@@ -261,7 +276,9 @@ class KiwoomAutoTrader():
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
 
         except Exception as e:
-            print('set_acc_error')
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(e, fname, exc_tb.tb_lineno)
 
     def set_position_info(self, acc_num):
         try:
@@ -283,8 +300,11 @@ class KiwoomAutoTrader():
                 with open('position.json', 'w', encoding="UTF8") as f:
                     json.dump(json_data, f, ensure_ascii=False, indent=4)
 
+
         except Exception as e:
-            print('set_position_info')
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(e, fname, exc_tb.tb_lineno)
 
     def set_trade_profit_info(self):
         if self.is_ny_market_open():
@@ -303,6 +323,20 @@ class KiwoomAutoTrader():
     # A call-back function to update required chart dataframes, which is called by Kiwoom API upon trade occurs
     def real_data_recv(self, recv_data):
         self.real_data_queue.append(recv_data)
+
+        # if not self.test_bol:
+        #     for i in range(7):
+        #         self.order_queue.append(
+        #             {'type': self.ENTER_BUY_SIGNAL, 'acc_num': '7007311872',
+        #              'quant': 1, 'position': 0})
+        #
+        #     for i in range(7):
+        #         self.order_queue.append(
+        #             {'type': self.CLEAR_BUY_SIGNAL, 'acc_num': '7007311872',
+        #              'quant': 1, 'position': 0})
+        #
+        #
+        #     self.test_bol = True
 
     # Once chart is updated, get the signal
     def process_real_data(self):
@@ -344,8 +378,10 @@ class KiwoomAutoTrader():
                     self.num_of_calc_indicator = len(self.already_calced_list)
                     self.already_calced_list = []
 
+                    self.check_total_profit_clear()
+
                 else:
-                    time.sleep(0.00001)
+                    time.sleep(0.01)
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -363,39 +399,45 @@ class KiwoomAutoTrader():
                         with open("position.json", "r", encoding="UTF8") as st_json:
                             json_data = json.load(st_json)
                     except Exception as e:
-                        print(e)
+                        exc_type, exc_obj, exc_tb = sys.exc_info()
+                        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                        print(e, fname, exc_tb.tb_lineno)
                         self.order_queue.append(order_data)
                         continue
 
-                    if str(order_data['position']) not in json_data[order_data['acc_num']]:
-                        json_data[order_data['acc_num']][str(order_data['position'])] = {}
-                    if 'quant' not in json_data[order_data['acc_num']][str(order_data['position'])]:
-                        json_data[order_data['acc_num']][str(order_data['position'])]['quant'] = 0
-                    if 'avg_price' not in json_data[order_data['acc_num']][str(order_data['position'])]:
-                        json_data[order_data['acc_num']][str(order_data['position'])]['avg_price'] = 0
+                    # if str(order_data['position']) not in json_data[order_data['acc_num']]:
+                    #     json_data[order_data['acc_num']][str(order_data['position'])] = {}
+                    # if 'quant' not in json_data[order_data['acc_num']][str(order_data['position'])]:
+                    #     json_data[order_data['acc_num']][str(order_data['position'])]['quant'] = 0
+                    # if 'avg_price' not in json_data[order_data['acc_num']][str(order_data['position'])]:
+                    #     json_data[order_data['acc_num']][str(order_data['position'])]['avg_price'] = 0
+                    # if 'avg_price' not in json_data[order_data['acc_num']][str(order_data['position'])]:
+                    #     json_data[order_data['acc_num']][str(order_data['position'])]['avg_price'] = 0
+                    #
+                    #     with open('position.json', 'w', encoding="UTF8") as f:
+                    #         json.dump(json_data, f, ensure_ascii=False, indent=4)
 
-                        with open('position.json', 'w', encoding="UTF8") as f:
-                            json.dump(json_data, f, ensure_ascii=False, indent=4)
 
+                    # if json_data[order_data['acc_num']][str(order_data['position'])]['quant'] == 0 and (
+                    #         order_data['type'] == self.CLEAR_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL):
+                    #
+                    #     temp = {}
+                    #     temp['type'] = -1
+                    #
+                    #     print('301203812038210938912830921830912893102923819023 먹힘 : ' + str(order_data['position']))
+                    #
+                    #     self.complete_order_queue_dict[order_data['acc_num']].append(temp)
+                    #
+                    # else:
+                    if order_data['type'] == self.ENTER_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL:
+                        result = self.kiwoom.send_order('시장가매수', '1010', order_data['acc_num'], 2, self.sCode,
+                                                        int(order_data['quant']), '0', '0', '1', '')
+                    elif order_data['type'] == self.ENTER_SELL_SIGNAL or order_data['type'] == self.CLEAR_BUY_SIGNAL:
+                        result = self.kiwoom.send_order('시장가매도', '1010', order_data['acc_num'], 1, self.sCode,
+                                                        int(order_data['quant']), '0', '0', '1', '')
 
-                    if json_data[order_data['acc_num']][str(order_data['position'])]['quant'] == 0 and (
-                            order_data['type'] == self.CLEAR_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL):
-
-                        temp = {}
-                        temp['type'] = -1
-
-                        self.complete_order_queue_dict[order_data['acc_num']].append(temp)
-
-                    else:
-                        if order_data['type'] == self.ENTER_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL:
-                            result = self.kiwoom.send_order('시장가매수', '1010', order_data['acc_num'], 2, self.sCode,
-                                                            int(order_data['quant']), '0', '0', '1', '')
-                        elif order_data['type'] == self.ENTER_SELL_SIGNAL or order_data['type'] == self.CLEAR_BUY_SIGNAL:
-                            result = self.kiwoom.send_order('시장가매도', '1010', order_data['acc_num'], 1, self.sCode,
-                                                            int(order_data['quant']), '0', '0', '1', '')
-
-                        if result != 0:
-                            self.order_queue.append(order_data)
+                    if result != 0:
+                        self.order_queue.append(order_data)
 
                 else:
                     time.sleep(0.00001)
@@ -415,8 +457,10 @@ class KiwoomAutoTrader():
 
             if json_data[data['acc_num']][str(data['position'])]['quant'] == 0:
                 json_data[data['acc_num']][str(data['position'])]['avg_price'] = 0
+                json_data[data['acc_num']][str(data['position'])]['enter_id'] = ''
             else:
                 json_data[data['acc_num']][str(data['position'])]['avg_price'] = data['avg_price']
+                json_data[data['acc_num']][str(data['position'])]['enter_id'] = data['enter_id']
 
             with open('position.json', 'w', encoding="UTF8") as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
@@ -433,6 +477,7 @@ class KiwoomAutoTrader():
         for msg_each in multiple_msg_list:
             msg_info = msg_each.split(';')
             price = float(msg_info[1])
+            self.current_price = float(msg_info[1])
             vol = int(msg_info[2])
 
             if df_in['date'].iloc[-1] == '':
@@ -478,6 +523,7 @@ class KiwoomAutoTrader():
             msg_info = msg_each.split(';')
             trade_date_time = str(msg_info[0])
             price = float(msg_info[1])
+            self.current_price = float(msg_info[1])
             vol = int(msg_info[2])
 
             current_time = trade_date_time + ':00'
@@ -560,6 +606,7 @@ class KiwoomAutoTrader():
             msg_info = msg_each.split(';')
             trade_date_time = str(msg_info[0])
             price = float(msg_info[1])
+            self.current_price = float(msg_info[1])
             vol = int(msg_info[2])
 
             if df_in['high'].iloc[-1] < price:
@@ -583,6 +630,28 @@ class KiwoomAutoTrader():
 
     def is_load_needed(self, bool):
         self.load_needed = bool
+
+    def check_total_profit_clear(self):
+        if self.profit_total_clear_running:
+
+            need_to_wait = False
+
+            for each in self.stretegy_list:
+                if each.need_to_load_position:
+                    need_to_wait = True
+                    break
+
+            if not need_to_wait:
+                sum = 0
+                for each in self.stretegy_list:
+                    sum += each.get_current_profit()
+
+                print(sum)
+
+                if self.profit_total_clear_profit <= sum or self.profit_total_clear_loss * -1 >= sum:
+                    self.profit_total_clear_running = False
+                    for each in self.stretegy_list:
+                        each.clear_position_req(profit_total_clear=True)
 
     def get_df(self, type, unit):
         if type == 'min':
@@ -627,18 +696,17 @@ class KiwoomAutoTrader():
         info['kiwoom_id'] = self.kiwoom_id
         info['sCode'] = self.sCode
 
-        if type == 'total':
+        if type == 'clear':
             temp = [info['trade_type'], info['strategy_name'], info['sCode'], info['kiwoom_id'], info['acc_num'], info['quant'], info['enter_type'],
                     info['enter_time'], info['enter_price'], info['enter_indicator'], info['clear_type'], info['clear_time'], info['clear_price'],
                     info['clear_indicator'], info['program_price_profit_tick'], info['real_price_profit_tick'], info['total_profit_dollar']]
 
-        elif type == 'enter' or type == 'clear':
-            temp = [info['trade_type'], info['strategy_name'], info['sCode'], info['kiwoom_id'], info['acc_num'],
+        elif type == 'enter':
+            temp = [info['enter_id'], info['trade_type'], info['strategy_name'], info['sCode'], info['kiwoom_id'], info['acc_num'],
                     info['quant'], info[type + '_type'], info['order_send_time'], info['order_complete_time'], info[type + '_time'],
                     info[type + '_price'], info[type + '_indicator']]
 
-        self.excel_updater.add_trade_info_to_excel_queue(type, temp)
-
+        self.excel_updater.add_trade_info_to_excel_queue(type, temp, info['enter_id'])
 
     def print_chart_data(self, msg):
         print(self.get_df(msg['type'], msg['unit']))
@@ -676,16 +744,22 @@ class KiwoomAutoTrader():
             self.aws_mqtt.publish_message(temp_msg)
 
     def get_current_price(self):
-        for k, v in self.min_dataframe_dict.items():
-            return v['close'].iloc[-1]
-
-        for k, v in self.tick_dataframe_dict.items():
-            return v['close'].iloc[-1]
-
-        return self.day_dataframe['close'].iloc[-1]
+        return self.current_price
 
     def clear_position_from_user(self, position):
         self.stretegy_list[position].clear_position_req(from_user=True)
+
+    def clear_all_position_from_user(self):
+        self.num_of_all_clear = 0
+
+        for each in self.stretegy_list:
+            each.clear_position_req(from_user=True, all_clear=True)
+
+        temp_msg = {}
+        temp_msg['command'] = 'clear_all_position_result_from_auto_trader'
+        temp_msg['num_of_clear'] = self.num_of_all_clear
+
+        self.aws_mqtt.publish_message(temp_msg)
 
 def auto_acc_pwd_input():
     flag = True
@@ -714,7 +788,6 @@ def auto_acc_pwd_input():
 
             flag = False
         except Exception as e:
-            print(e)
             if not flag:
                 is_disappear = True
             time.sleep(1)
