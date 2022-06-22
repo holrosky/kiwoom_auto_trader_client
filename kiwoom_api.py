@@ -28,7 +28,7 @@ class KiwoomAPI():
         self.login_event_loop = QEventLoop()
         self.request_loop = QEventLoop()
         self.order_dict = {}
-        # self.order_loop = QEventLoop()
+        self.order_loop = None
         # self.error = QEventLoop()
 
         self.df_ohlcv = pandas.DataFrame()
@@ -407,31 +407,29 @@ class KiwoomAPI():
             print("Error : ParameterTypeError by SendOrder")
             raise ParameterTypeError()
 
-        now = datetime.datetime.now()
+        with open("log.txt", "a", encoding="UTF8") as log:
+
+            now = datetime.datetime.now()
+            log.write("============ 주문 요청 ============\n")
+            log.write("주문계좌 : " + str(sAccNo) + '\n')
+            if nOrderType == 2:
+                log.write("주문타입 : 매수\n")
+            else:
+                log.write("주문타입 : 매도\n")
+            log.write("주문수량 : " + str(nQty) + '\n')
+            log.write("주문시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
 
         errorCode = self.kiwoom.SendOrder(sRQName, sScreenNo, sAccNo, nOrderType, sCode, nQty, sPrice, sStop, sHogaGb,
                                           sOrgOrderNo)
 
-        print('error code : ', errorCode)
+        print('Send_order error code : ', errorCode)
 
-        with open("log.txt", "a", encoding="UTF8") as log:
+        if errorCode != ErrorCode.OP_ERR_NONE:
+            log.write("============ 주문 요청 에러 ============\n")
+            log.write(KiwoomProcessingError("주문 에러 : " + ErrorCode.CAUSE[errorCode]))
+            print(KiwoomProcessingError("sendOrder(): " + ErrorCode.CAUSE[errorCode]))
 
-            if errorCode != ErrorCode.OP_ERR_NONE:
-                log.write("============ 주문 요청 에러 ============\n")
-                log.write(KiwoomProcessingError("주문 에러 : " + ErrorCode.CAUSE[errorCode]))
-                print(KiwoomProcessingError("sendOrder(): " + ErrorCode.CAUSE[errorCode]))
-
-            else:
-                now = datetime.datetime.now()
-                log.write("============ 주문 요청 ============\n")
-                log.write("주문계좌 : " + str(sAccNo) + '\n')
-                if nOrderType == 2:
-                    log.write("주문타입 : 매수\n")
-                else:
-                    log.write("주문타입 : 매도\n")
-                log.write("주문수량 : " + str(nQty) + '\n')
-                log.write("주문시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
-
+        else:
             self.order_loop = QEventLoop()
             self.order_loop.exec_()
 
@@ -1101,7 +1099,7 @@ class KiwoomAPI():
         # print("OnReceiveChejanData sGubun : ", sGubun)
         # print('======================================')
         if int(sGubun) == 0:
-            now = datetime.datetime.now()
+
             order_num = str(self.kiwoom.GetChejanData(9203))
             if order_num not in self.order_dict:
                 self.order_dict[order_num] = {}
@@ -1158,10 +1156,17 @@ class KiwoomAPI():
                 # print('주문수량 : ', str(self.kiwoom.GetChejanData(900)))
                 # print('실현손익 : ', str(self.kiwoom.GetChejanData(8018)))
 
-                now = datetime.datetime.now()
 
-                with open("log.txt", "a", encoding="UTF8") as log:
-                    log.write("============ 주문 응답 ============\n")
+                self.order_loop.exit()
+                #print(self.parent.complete_order_queue_dict)
+
+        now = datetime.datetime.now()
+
+        with open("log.txt", "a", encoding="UTF8") as log:
+            try:
+                log.write("============ 주문 응답 ============\n")
+                log.write("sGubun : " + str(sGubun) + '\n')
+                if int(sGubun) != 0:
                     log.write("주문계좌 : " + str(acc_num) + '\n')
                     log.write("주문타입 : " + str(self.order_dict[order_num]['type']) + '\n')
                     log.write("진입수량 : " + str(self.order_dict[order_num]['sum_of_enter_quant']) + '\n')
@@ -1169,9 +1174,10 @@ class KiwoomAPI():
                     log.write("주문평균가 : " + str(self.order_dict[order_num]['avg_price']) + '\n')
                     log.write("주문응답시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
 
-
-                self.order_loop.exit()
-                #print(self.parent.complete_order_queue_dict)
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e, fname, exc_tb.tb_lineno)
 
 
     # 로그인 이벤트 응답

@@ -330,9 +330,6 @@ class Strategy():
 
                 self.is_there_ai_clear = False if len(self.strategy_json['ai_clear']) == 0 else True
 
-                if self.need_to_load_position:
-                    self.parent.get_position_info(self.trade_account)
-
                 self.current_total_profit_tick = 0
                 self.reset_cross_check()
 
@@ -377,17 +374,14 @@ class Strategy():
 
 
                                     if enter_meet:
-                                        now = datetime.datetime.now()
                                         for each in self.or_strategy_dict:
                                             if not self.or_strategy_dict[each]:
                                                 enter_meet = False
                                                 break
 
-
-
                                     if enter_meet:
                                         now = datetime.datetime.now()
-                                        print('전략만족 : ', now.strftime('%Y-%m-%d %H:%M:%S.%f'))
+                                        print(str(self.strategy_name) + ' 만족 : ' +  str(now.strftime('%Y-%m-%d %H:%M:%S.%f')))
                                         if self.virtual_first_enter_time == None:
                                             self.virtual_first_enter_time = datetime.datetime.now()
 
@@ -397,14 +391,12 @@ class Strategy():
 
 
                                         else:
-                                            now = datetime.datetime.now()
-                                            print('전략만족 - 3 : ', now.strftime('%Y-%m-%d %H:%M:%S.%f'))
-
                                             if v == '매수':
                                                 self.waiting_enter_type = '매수'
                                                 self.parent.order_queue.append(
                                                     {'type': self.ENTER_BUY_SIGNAL, 'acc_num': self.trade_account,
                                                      'quant': self.quant, 'position': self.position})
+
                                             else:
                                                 self.waiting_enter_type = '매도'
                                                 self.parent.order_queue.append(
@@ -1217,9 +1209,9 @@ class Strategy():
                         return self.CONDITION_FAIL
 
                 if (info['bar_status'] == 'bull' and pre_open <= pre_close and pre_open + (
-                        self.tick_unit * tick_diff_from) < pre_close) or \
+                        self.tick_unit * tick_diff_from) <= pre_close) or \
                         (info['bar_status'] == 'bear' and pre_open >= pre_close and pre_open - (
-                                self.tick_unit * tick_diff_from) > pre_close):
+                                self.tick_unit * tick_diff_from) >= pre_close):
 
                     self.telegram_msg += '==============\n'
 
@@ -1266,9 +1258,9 @@ class Strategy():
                         return self.CONDITION_FAIL
 
                 if (info['bar_status'] == 'bull' and current_open <= current_close and current_open + (
-                        self.tick_unit * tick_diff_from) < current_close) or \
+                        self.tick_unit * tick_diff_from) <= current_close) or \
                         (info['bar_status'] == 'bear' and current_open >= current_close and current_open - (
-                                self.tick_unit * tick_diff_from) > current_close):
+                                self.tick_unit * tick_diff_from) >= current_close):
 
                     self.telegram_msg += '==============\n'
 
@@ -1302,7 +1294,7 @@ class Strategy():
 
                     diff_val = current_price - max_val
                 else:
-                    for i in range(1, int(info['num_of_bar'] + 1)):
+                    for i in range(1, int(info['num_of_bar']) + 1):
                         min_val = min(min_val, df['low'].iloc[i * -1])
 
                     result_val = min_val
@@ -2423,7 +2415,7 @@ class Strategy():
 
             if self.is_simulation_strategy or self.is_virtual_trade():
                 if self.has_position:
-                    self.current_price = self.parent.get_current_price()
+                    #self.current_price = self.parent.get_current_price()
                     profit = abs(self.current_price - self.enter_price)
                     profit = int(profit // self.tick_unit)
                     if self.enter_type == '매수':
@@ -2601,7 +2593,7 @@ class Strategy():
                 elif data['type'] == self.waiting_enter_type and self.has_position and int(data['sum_of_clear_quant']) == int(self.quant):
                     real_profit = int((data['sum_of_profit'] // self.tick_value) // int(data['sum_of_clear_quant']))
 
-                    self.current_price = self.parent.get_current_price()
+                    #self.current_price = self.parent.get_current_price()
 
                     program_profit = abs(self.current_price - self.enter_price)
                     program_profit = int(program_profit // self.tick_unit)
@@ -2734,7 +2726,7 @@ class Strategy():
 
     def get_current_profit(self):
         if self.has_position:
-            self.current_price = self.parent.get_current_price()
+            #self.current_price = self.parent.get_current_price()
 
             profit = abs(self.current_price - self.enter_price)
             profit = int(profit // self.tick_unit) * self.quant
@@ -2742,7 +2734,7 @@ class Strategy():
                     self.enter_type == '매도' and self.enter_price < self.current_price):
                 profit = profit * -1
 
-            return profit
+            return profit + self.current_total_profit_tick
         else:
             return 0
 
@@ -2840,6 +2832,7 @@ class Strategy():
                     if self.enter_type == '매수':
                         self.waiting_enter_type = '매도'
                         self.parent.order_queue.append({'type': self.CLEAR_BUY_SIGNAL, 'acc_num': self.trade_account, 'quant': self.quant,'position': self.position})
+
                     else:
                         self.waiting_enter_type = '매수'
                         self.parent.order_queue.append({'type': self.CLEAR_SELL_SIGNAL, 'acc_num': self.trade_account, 'quant': self.quant,'position': self.position})

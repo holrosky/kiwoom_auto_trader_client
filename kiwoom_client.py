@@ -395,16 +395,6 @@ class KiwoomAutoTrader():
                     order_data = self.order_queue.popleft()
                     print(order_data)
 
-                    try:
-                        with open("position.json", "r", encoding="UTF8") as st_json:
-                            json_data = json.load(st_json)
-                    except Exception as e:
-                        exc_type, exc_obj, exc_tb = sys.exc_info()
-                        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                        print(e, fname, exc_tb.tb_lineno)
-                        self.order_queue.append(order_data)
-                        continue
-
                     # if str(order_data['position']) not in json_data[order_data['acc_num']]:
                     #     json_data[order_data['acc_num']][str(order_data['position'])] = {}
                     # if 'quant' not in json_data[order_data['acc_num']][str(order_data['position'])]:
@@ -440,7 +430,7 @@ class KiwoomAutoTrader():
                         self.order_queue.append(order_data)
 
                 else:
-                    time.sleep(0.00001)
+                    time.sleep(0.01)
 
 
             except Exception as e:
@@ -645,8 +635,6 @@ class KiwoomAutoTrader():
                 sum = 0
                 for each in self.stretegy_list:
                     sum += each.get_current_profit()
-
-                print(sum)
 
                 if self.profit_total_clear_profit <= sum or self.profit_total_clear_loss * -1 >= sum:
                     self.profit_total_clear_running = False
