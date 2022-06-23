@@ -2725,7 +2725,7 @@ class Strategy():
             print(e, fname, exc_tb.tb_lineno)
 
     def get_current_profit(self):
-        if self.has_position:
+        if self.has_position and not self.is_virtual_trade() and not self.is_simulation_strategy:
             #self.current_price = self.parent.get_current_price()
 
             profit = abs(self.current_price - self.enter_price)
@@ -2736,7 +2736,10 @@ class Strategy():
 
             return profit + self.current_total_profit_tick
         else:
-            return 0
+            if self.is_simulation_strategy:
+                return 0
+            else:
+                return self.current_total_profit_tick
 
     def check_acc_num_changed(self, acc_num):
         if acc_num != self.trade_account and self.trade_account:
