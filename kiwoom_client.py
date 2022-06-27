@@ -701,7 +701,7 @@ class KiwoomAutoTrader():
 
     def save_chart_data(self, msg):
         df = self.get_df(msg['type'], msg['unit'])
-        df.to_csv(str(self.sCode) + '_' + str(msg['type']) + '_' + str(msg['unit']) + '.csv')
+        df.to_excel(str(self.sCode) + '_' + str(msg['type']) + '_' + str(msg['unit']) + '.xlsx')
 
     def send_telegram(self, msg):
         self.telegram.send_message(msg)

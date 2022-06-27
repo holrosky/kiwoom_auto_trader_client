@@ -102,6 +102,11 @@ class Strategy():
         self.current_total_profit_enter_times = 0
         self.current_total_tick_for_virtual_trade = 0
 
+        self.virtual_start_hour = 0
+        self.virtual_start_min = 0
+        self.virtual_end_hour = 0
+        self.virtual_end_min = 0
+
         self.virtual_current_loss_total_tick = 0
         self.virtual_current_total_enter_times = 0
         self.virtual_current_consecutive_loss_times = 0
@@ -248,6 +253,11 @@ class Strategy():
 
                     for each in enter_list:
                         if each['name'] == '가상매매지표 (먼저만족)':
+                            self.virtual_start_hour = int(each['start_hour'])
+                            self.virtual_start_min = int(each['start_min'])
+                            self.virtual_end_hour = int(each['end_hour'])
+                            self.virtual_end_min = int(each['end_min'])
+
                             self.is_there_first_meet_virtual_indicator = True
                             self.is_there_box_virtual_indicator = False
 
@@ -275,6 +285,11 @@ class Strategy():
 
 
                         elif each['name'] == '가상매매지표 (박스권체크)':
+                            self.virtual_start_hour = int(each['start_hour'])
+                            self.virtual_start_min = int(each['start_min'])
+                            self.virtual_end_hour = int(each['end_hour'])
+                            self.virtual_end_min = int(each['end_min'])
+
                             self.is_there_first_meet_virtual_indicator = False
                             self.is_there_box_virtual_indicator = True
 
@@ -315,7 +330,7 @@ class Strategy():
                             self.indicator_dict['RSI'][each['indicator_time_type'] + '_' + each['indicator_unit'] + '_' + each['rsi_period']] = False
 
 
-                        elif each['name'] == 'MACD 크로스' or each['name'] == 'MACD / Osc 현재값' or each['name'] == 'MACD Osc 비교':
+                        elif each['name'] == 'MACD 크로스' or each['name'] == 'MACD / Osc 현재값' or each['name'] == 'MACD Osc 비교'or each['name'] == 'MACD Osc 연속 증감':
                             self.indicator_dict['MACD'][each['indicator_time_type'] + '_' + each['indicator_unit'] + '_' + each['macd_short']
                                                         + '_' + each['macd_long'] + '_' + each['macd_signal']] = False
 
@@ -381,13 +396,21 @@ class Strategy():
 
                                     if enter_meet:
                                         now = datetime.datetime.now()
-                                        print(str(self.strategy_name) + ' 만족 : ' +  str(now.strftime('%Y-%m-%d %H:%M:%S.%f')))
+
                                         if self.virtual_first_enter_time == None:
                                             self.virtual_first_enter_time = datetime.datetime.now()
 
                                         if self.is_simulation_strategy or self.is_virtual_trade():
-
-                                            self.enter_position_req(enter_type=v)
+                                            if self.is_virtual_trade():
+                                                if self.is_time_between(datetime.time(self.virtual_start_hour % 24, self.virtual_start_min % 60, 0), \
+                                                                     datetime.time(self.virtual_end_hour % 24, self.virtual_end_min % 60, 0)):
+                                                    print(str(self.strategy_name) + ' 만족 : ' + str(
+                                                        now.strftime('%Y-%m-%d %H:%M:%S.%f')))
+                                                    self.enter_position_req(enter_type=v)
+                                            else:
+                                                print(str(self.strategy_name) + ' 만족 : ' + str(
+                                                    now.strftime('%Y-%m-%d %H:%M:%S.%f')))
+                                                self.enter_position_req(enter_type=v)
 
 
                                         else:
@@ -403,6 +426,7 @@ class Strategy():
                                                     {'type': self.ENTER_SELL_SIGNAL, 'acc_num': self.trade_account,
                                                      'quant': self.quant, 'position': self.position})
 
+                                            print(str(self.strategy_name) + ' 만족 : ' + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')))
                                             self.enter_position_req()
 
                                         break
@@ -1502,6 +1526,71 @@ class Strategy():
                     self.telegram_msg += '두번째 전봉 MACD Osc : ' + str(df[MACD_Osc_name].iloc[-3]) + '\n'
                     self.telegram_msg += '첫번째 전봉 MACD Osc : ' + str(df[MACD_Osc_name].iloc[-2]) + '\n'
                     self.telegram_msg += '현재봉 MACD Osc : ' + str(df[MACD_Osc_name].iloc[-1]) + '\n'
+
+                    return self.CONDITION_MEET
+                else:
+                    return self.CONDITION_FAIL
+
+            elif info['name'] == 'MACD Osc 연속 증감':
+                df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
+                MACD_Osc_name = 'MACD_Osc_' + info['macd_short'] + '_' + info['macd_long'] + '_' + info['macd_signal']
+                #df = self.indicator.get_macd(df, float(info['macd_short']), float(info['macd_long']), float(info['macd_signal']))
+
+                if self.has_position:
+                    profit = abs(self.current_price - self.enter_price)
+                    profit = int(profit // self.tick_unit)
+
+                    if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
+                            self.enter_type == '매도' and self.enter_price < self.current_price):
+                        profit = profit * -1
+
+                    target_clear_tick_from = int(info['target_clear_tick_from'])
+                    target_clear_tick_to = int(info['target_clear_tick_to'])
+
+                    if target_clear_tick_from <= profit <= target_clear_tick_to:
+                        pass
+                    else:
+                        return self.CONDITION_FAIL
+
+                condition_meet = True
+                num_of_bar = int(info['num_of_bar'])
+                count = 0
+                p1 = -2
+                p2 = -3
+
+                osc_val_list = []
+
+                while count < num_of_bar-1:
+                    osc_val_list.append(df[MACD_Osc_name].iloc[p1])
+
+                    if (info['macd_change_type'] == 'increase' and df[MACD_Osc_name].iloc[p2] > df[MACD_Osc_name].iloc[p1]) or \
+                        (info['macd_change_type'] == 'decrease' and df[MACD_Osc_name].iloc[p2] < df[MACD_Osc_name].iloc[p1]):
+                        condition_meet = False
+                        break
+                    elif df[MACD_Osc_name].iloc[p2] == df[MACD_Osc_name].iloc[p1]:
+                        p2 -= 1
+
+                    else:
+                        count += 1
+                        p1 -= 1
+                        p2 -= 1
+
+                osc_val_list.append(df[MACD_Osc_name].iloc[p1])
+
+                if condition_meet:
+                    self.telegram_msg += '==============\n'
+
+                    self.telegram_msg += '지표명 : ' + info['name'] + '\n'
+
+                    self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
+
+                    word_dict = {'increase': '증가', 'decrease': '감소'}
+
+                    self.telegram_msg += '증감 타입 : ' + word_dict[info['macd_change_type']] + '\n'
+                    self.telegram_msg += '증감 봉 갯수 : ' + str(num_of_bar) + '개\n'
+
+                    for i in range(len(osc_val_list)):
+                        self.telegram_msg += str(i+1) + ' 번째 전봉 MACD Osc : ' + str(osc_val_list[i]) + '\n'
 
                     return self.CONDITION_MEET
                 else:
