@@ -34,6 +34,30 @@ class Indicator():
 
         return df
 
+    def get_pivot(self, df):
+        if 'second_resistance' in df:
+            return df
+        else:
+            pre_day_high = df['high'].iloc[-2]
+            pre_day_low = df['low'].iloc[-2]
+            pre_day_close = df['open'].iloc[-1]
+
+            pivot_val = (pre_day_high + pre_day_low + pre_day_close) / 3
+
+            df['second_resistance'] = 0
+            df['first_resistance'] = 0
+            df['pivot_point'] = 0
+            df['first_support'] = 0
+            df['second_support'] = 0
+
+            df['second_resistance'].iloc[-1] = round(pivot_val + pre_day_high - pre_day_low, 2)
+            df['first_resistance'].iloc[-1] = round((2 * pivot_val) - pre_day_low, 2)
+            df['pivot_point'].iloc[-1] = round(pivot_val, 2)
+            df['first_support'].iloc[-1] = round((2 * pivot_val) - pre_day_high, 2)
+            df['second_support'].iloc[-1] = round(pivot_val - pre_day_high + pre_day_low, 2)
+
+        return df
+
     def get_parabolic(self, df, af=0.02, af_max=0.2, calc_only_last=False):
         try:
             PSAR_name = 'PSAR_' + str(af) + '_' + str(af_max)

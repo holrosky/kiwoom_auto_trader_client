@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication
 
 import aws_mqtt
 import excel_updater
+import indicator
 import kiwoom_api
 import pyautogui
 import pygetwindow as gw
@@ -188,7 +189,7 @@ class KiwoomAutoTrader():
                                     pass
 
                                 try:
-                                    if each_indicator['name'] == '가격지표':
+                                    if each_indicator['name'] == '가격지표' or each_indicator['name'] == 'Pivot-직전봉' or each_indicator['name'] == 'Pivot-현재가':
                                         day_dataframe_needed = True
 
                                 except Exception as e:
@@ -205,7 +206,6 @@ class KiwoomAutoTrader():
                     for each in self.min_unit_list:
                         if each not in self.min_dataframe_dict:
                             self.min_dataframe_dict[each] = self.kiwoom.get_ohlcv(self.sCode, 'min', each)
-
 
 
                     if day_dataframe_needed and self.day_dataframe.empty:
@@ -324,20 +324,6 @@ class KiwoomAutoTrader():
     def real_data_recv(self, recv_data):
         self.real_data_queue.append(recv_data)
 
-        # if not self.test_bol:
-        #     for i in range(7):
-        #         self.order_queue.append(
-        #             {'type': self.ENTER_BUY_SIGNAL, 'acc_num': '7007311872',
-        #              'quant': 1, 'position': 0})
-        #
-        #     for i in range(7):
-        #         self.order_queue.append(
-        #             {'type': self.CLEAR_BUY_SIGNAL, 'acc_num': '7007311872',
-        #              'quant': 1, 'position': 0})
-        #
-        #
-        #     self.test_bol = True
-
     # Once chart is updated, get the signal
     def process_real_data(self):
         while True:
@@ -386,7 +372,6 @@ class KiwoomAutoTrader():
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print(e, fname, exc_tb.tb_lineno)
-
 
     def process_order(self):
         while True:
