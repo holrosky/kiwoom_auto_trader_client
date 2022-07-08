@@ -29,7 +29,7 @@ class Parabolic():
     def get_psar(self, high, low):
         if self.trend == 'bull':
             self.pars = round(self.pars + (self.af * (self.ep - self.pars)), 2)
-            self.trend = 'bull'
+            #self.trend = 'bull'
 
             if low < self.pars:
                 self.trend = "bear"
@@ -44,7 +44,7 @@ class Parabolic():
 
         elif self.trend == 'bear':
             self.pars = round(self.pars - (self.af * (self.pars - self.ep)), 2)
-            self.trend = 'bear'
+            #self.trend = 'bear'
 
             if high > self.pars:
                 self.trend = "bull"

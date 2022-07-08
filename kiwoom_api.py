@@ -40,7 +40,7 @@ class KiwoomAPI():
         # Event 리스너 등록
         self.kiwoom.OnReceiveTrData.connect(self.receive_tr_data)
         self.kiwoom.OnReceiveRealData.connect(self.receive_real_data)
-        #self.kiwoom.OnReceiveMsg.connect(self.receive_msg)
+        self.kiwoom.OnReceiveMsg.connect(self.receive_msg)
         self.kiwoom.OnReceiveChejanData.connect(self.receive_chejan_data)
         self.kiwoom.OnEventConnect.connect(self.event_connect)
 
@@ -487,7 +487,7 @@ class KiwoomAPI():
                 self.set_input_value('계좌번호', acc_no)
                 self.set_input_value('비밀번호', '')
                 self.set_input_value('통화코드', 'USD')
-                self.comm_rq_data('포지션정보', 'opw30004', '', '0102')
+                self.comm_rq_data('포지션정보', 'opw30004', '', '0101')
 
                 if not self.error_flag:
                     break
@@ -1072,13 +1072,25 @@ class KiwoomAPI():
                 sTrCode – CommRqData의 sTrCode 와 매핑된다
         """
 
-        # print('======================================')
-        # print("OnReceiveMsg sScrNo : ", sScrNo)
-        # print("OnReceiveMsg sRQName : ", sRQName)
-        # print("OnReceiveMsg sTrCode : ", sTrCode)
-        # print("OnReceiveMsg sMsg : ", sMsg)
-        # print('======================================')
+        print('======================================')
+        print("OnReceiveMsg sScrNo : ", sScrNo)
+        print("OnReceiveMsg sRQName : ", sRQName)
+        print("OnReceiveMsg sTrCode : ", sTrCode)
+        print("OnReceiveMsg sMsg : ", sMsg)
+        print('======================================')
         #self.msg += sRQName + ": " + sMsg + "\r\n\r\n"
+
+        if str(sScrNo) != '0101' and '주문' in str(sMsg):
+            s = str(sMsg)
+            result = s[s.find('[') + len('['):s.rfind(']')].replace(' ','')
+            print(result)
+
+            if result != '0':
+                self.order_loop = QEventLoop()
+                self.parent.stop_strategy(int(sScrNo), str(sMsg))
+
+        else:
+            print('주문아님')
 
     # OnReceiveChejanData
     def receive_chejan_data(self, sGubun, nItemCnt, sFidList):

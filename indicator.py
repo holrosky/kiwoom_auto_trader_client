@@ -63,6 +63,7 @@ class Indicator():
             PSAR_name = 'PSAR_' + str(af) + '_' + str(af_max)
             EP_name = 'EP_' + str(af) + '_' + str(af_max)
             AF_name = 'AF_' + str(af) + '_' + str(af_max)
+
             self.pars.setup_psar(df, af_step=af, max_af=af_max, calc_only_last=calc_only_last)
 
             if calc_only_last:
@@ -75,6 +76,7 @@ class Indicator():
 
                 for i in range(len(df)):
                     df[PSAR_name].iloc[i], df[EP_name].iloc[i], df[AF_name].iloc[i] = self.pars.get_psar(df['high'].iloc[i], df['low'].iloc[i])
+
             return df
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()

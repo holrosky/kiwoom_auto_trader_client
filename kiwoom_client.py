@@ -235,11 +235,11 @@ class KiwoomAutoTrader():
 
                     if self.first_run:
                         self.first_run = False
-                        process_real_data_thread = threading.Thread(target=self.process_real_data)
-                        process_real_data_thread.start()
+                        self.process_real_data_thread = threading.Thread(target=self.process_real_data)
+                        self.process_real_data_thread.start()
 
-                        process_order_thread = threading.Thread(target=self.process_order)
-                        process_order_thread.start()
+                        self.process_order_thread = threading.Thread(target=self.process_order)
+                        self.process_order_thread.start()
 
                     self.load_needed = False
 
@@ -405,10 +405,10 @@ class KiwoomAutoTrader():
                     #
                     # else:
                     if order_data['type'] == self.ENTER_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL:
-                        result = self.kiwoom.send_order('시장가매수', '1010', order_data['acc_num'], 2, self.sCode,
+                        result = self.kiwoom.send_order('시장가매수', str(order_data['position']), order_data['acc_num'], 2, self.sCode,
                                                         int(order_data['quant']), '0', '0', '1', '')
                     elif order_data['type'] == self.ENTER_SELL_SIGNAL or order_data['type'] == self.CLEAR_BUY_SIGNAL:
-                        result = self.kiwoom.send_order('시장가매도', '1010', order_data['acc_num'], 1, self.sCode,
+                        result = self.kiwoom.send_order('시장가매도', str(order_data['position']), order_data['acc_num'], 1, self.sCode,
                                                         int(order_data['quant']), '0', '0', '1', '')
 
                     if result != 0:
@@ -733,6 +733,13 @@ class KiwoomAutoTrader():
         temp_msg['num_of_clear'] = self.num_of_all_clear
 
         self.aws_mqtt.publish_message(temp_msg)
+
+    def stop_strategy(self, position, msg):
+        self.process_order_thread = threading.Thread(target=self.process_order)
+        self.process_order_thread.start()
+        result = self.stretegy_list[position].stop_strategy(msg)
+        result['command'] = 'json_update_from_auto_trader'
+        self.aws_mqtt.publish_message(result)
 
 def auto_acc_pwd_input():
     flag = True

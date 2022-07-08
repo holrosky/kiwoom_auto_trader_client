@@ -334,7 +334,7 @@ class Strategy():
                             self.indicator_dict['MACD'][each['indicator_time_type'] + '_' + each['indicator_unit'] + '_' + each['macd_short']
                                                         + '_' + each['macd_long'] + '_' + each['macd_signal']] = False
 
-                        elif each['name'] == '파라볼릭':
+                        elif each['name'] == '파라볼릭' or each['name'] == '파라볼릭 고/저-가격':
                             self.indicator_dict['PARABOLIC'][each['indicator_time_type'] + '_' + each['indicator_unit'] + '_' + each['prabolic_value_one'] + '_' + each['prabolic_value_two']] = False
 
                         elif each['name'] == '직전봉-현재가' and each['is_start'] == 'true':
@@ -1181,6 +1181,123 @@ class Strategy():
                 else:
                     return self.CONDITION_FAIL
 
+
+            elif info['name'] == '파라볼릭 고/저-가격':
+                df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
+
+                PSAR_name = 'PSAR_' + str(info['prabolic_value_one']) + '_' + str(info['prabolic_value_two'])
+                EP_name = 'EP_' + str(info['prabolic_value_one']) + '_' + str(info['prabolic_value_two'])
+
+                current_trend = 'bull' if df[PSAR_name].iloc[-1] < df['close'].iloc[-1] else 'bear'
+                if info['update_type'] == 'real':
+                    if current_trend == 'bull':
+                        high = df[EP_name].iloc[-1]
+
+                        idx = -1
+                        while df[PSAR_name].iloc[idx] < df['close'].iloc[idx]:
+                            idx -= 1
+
+                        low = df[EP_name].iloc[idx]
+
+                    else:
+                        low = df[EP_name].iloc[-1]
+
+                        idx = -1
+                        while df[PSAR_name].iloc[idx] > df['close'].iloc[idx]:
+                            idx -= 1
+
+                        high = df[EP_name].iloc[idx]
+                else:
+                    if current_trend == 'bull':
+                        idx = -1
+                        while df[PSAR_name].iloc[idx] < df['close'].iloc[idx]:
+                            idx -= 1
+
+                        low = df[EP_name].iloc[idx]
+
+                        while df[PSAR_name].iloc[idx] > df['close'].iloc[idx]:
+                            idx -= 1
+
+                        high = df[EP_name].iloc[idx]
+
+                    else:
+                        idx = -1
+                        while df[PSAR_name].iloc[idx] > df['close'].iloc[idx]:
+                            idx -= 1
+
+                        high = df[EP_name].iloc[idx]
+
+                        while df[PSAR_name].iloc[idx] < df['close'].iloc[idx]:
+                            idx -= 1
+
+                        low = df[EP_name].iloc[idx]
+
+                h1 = high
+                l2 = low
+
+                mid = round((high + low) / 2, 2)
+
+                h2 = round((high + mid) / 2, 2)
+                l1 = round((mid + l2) / 2, 2)
+
+                high_low_list = [h1, h2, mid, l1, l2]
+
+                price = df['close'].iloc[-1] if info['price_type'] == 'real' else df['close'].iloc[-2]
+
+                diff_val = round(high_low_list[int(info['high_low_type'])] - price, 2)
+
+                if info['name'] not in self.or_strategy_dict:
+                    self.or_strategy_dict[info['name']] = False
+
+                tick_diff_from = int(info['tick_diff_from'])
+                tick_diff_to = int(info['tick_diff_to'])
+
+                if self.has_position:
+                    profit = abs(self.current_price - self.enter_price)
+                    profit = int(profit // self.tick_unit)
+
+                    if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
+                            self.enter_type == '매도' and self.enter_price < self.current_price):
+                        profit = profit * -1
+
+                    target_clear_tick_from = int(info['target_clear_tick_from'])
+                    target_clear_tick_to = int(info['target_clear_tick_to'])
+
+                    if target_clear_tick_from <= profit <= target_clear_tick_to:
+                        pass
+                    else:
+                        return self.CONDITION_FAIL
+
+                if tick_diff_from <= int(diff_val // self.tick_unit) and int(
+                        diff_val // self.tick_unit) <= tick_diff_to:
+
+                    self.telegram_msg += '==============\n'
+
+                    self.telegram_msg += '지표명 : ' + info['name'] + '(' + info['prabolic_value_one'] + '/' + info[
+                        'prabolic_value_two'] + ')\n'
+
+                    self.telegram_msg += '봉타입 : 실시간\n' if info['time_type'] == 'real' else '봉타입 : 직전봉\n'
+
+                    word_high_low_type_dict = {"0": "H1", "1": "H2", "2": "M", "3": "L1", "4": "L2"}
+                    word_time_dict = {'day': '일', 'min': '분', 'tick': '틱'}
+
+                    if info['time_type'] == 'real':
+                        self.telegram_msg += info['indicator_unit'] + word_time_dict[
+                            info['indicator_time_type']] + '봉 현재가격 : ' + str(price) + '\n'
+                    else:
+                        self.telegram_msg += info['indicator_unit'] + word_time_dict[
+                            info['indicator_time_type']] + '봉 직전봉 가격 : ' + str(price) + '\n'
+
+                    for i in range(len(high_low_list)):
+                        self.telegram_msg += word_high_low_type_dict[str(i)] + ' 값 : ' + str(high_low_list[i]) + '\n'
+                    self.telegram_msg += '두 값 차이 : ' + str(diff_val) + '\n'
+
+                    self.or_strategy_dict[info['name']] = True
+
+                    return self.CONDITION_MEET
+                else:
+                    return self.CONDITION_PASS
+
             elif info['name'] == 'RSI':
                 df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
 
@@ -1249,8 +1366,6 @@ class Strategy():
                     self.or_strategy_dict[info['name']] = False
 
                 diff_val = pre_price_dict[info['ohcl_type']] - current_price
-
-                # print(self.telegram_msg)
 
                 if self.has_position:
                     profit = abs(self.current_price - self.enter_price)
@@ -3126,6 +3241,35 @@ class Strategy():
 
             with open('position.json', 'w', encoding="UTF8") as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+    def stop_strategy(self, msg):
+        self.need_to_load_position = False
+        self.running_status = False
+
+        with open("setting.json", "r", encoding='utf-8') as st_json:
+            json_data = json.load(st_json)
+
+        json_data['strategy_list'][self.position]['running_status'] = 'false'
+
+        with open('setting.json', 'w', encoding="UTF8") as f:
+            json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+        with open("log.txt", "a", encoding="UTF8") as log:
+            try:
+                now = datetime.datetime.now()
+
+                log.write("!!!!!!!!!!!!! 주문 에러 !!!!!!!!!!!!!\n")
+                log.write("전략명 : " + str(self.strategy_name) + '\n')
+                log.write("주문계좌 : " + str(self.trade_account) + '\n')
+                log.write("에러내용 : " + str(msg) + '\n')
+                log.write("주문요청시간 : " + str(now.strftime('%Y-%m-%d %H:%M:%S.%f')) + '\n')
+
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e, fname, exc_tb.tb_lineno)
+
+        return json_data
 
     def is_time_between(self, begin_time, end_time):
         # If check time is not given, default to current UTC time
