@@ -56,6 +56,7 @@ class KiwoomAutoTrader():
 
         self.already_calced_list = []
         self.num_of_calc_indicator = 0
+        self.num_of_calc_waiting = 0
         self.current_price = 0
 
         self.trade_profit_dict = {}
@@ -358,8 +359,12 @@ class KiwoomAutoTrader():
 
                     self.trim_chart()
 
+                    self.num_of_calc_waiting = 0
+
                     for each in self.stretegy_list:
                         each.get_signal()
+                        if each.need_to_load_position:
+                            self.num_of_calc_waiting += 1
 
                     self.num_of_calc_indicator = len(self.already_calced_list)
                     self.already_calced_list = []
@@ -380,30 +385,6 @@ class KiwoomAutoTrader():
                     order_data = self.order_queue.popleft()
                     print(order_data)
 
-                    # if str(order_data['position']) not in json_data[order_data['acc_num']]:
-                    #     json_data[order_data['acc_num']][str(order_data['position'])] = {}
-                    # if 'quant' not in json_data[order_data['acc_num']][str(order_data['position'])]:
-                    #     json_data[order_data['acc_num']][str(order_data['position'])]['quant'] = 0
-                    # if 'avg_price' not in json_data[order_data['acc_num']][str(order_data['position'])]:
-                    #     json_data[order_data['acc_num']][str(order_data['position'])]['avg_price'] = 0
-                    # if 'avg_price' not in json_data[order_data['acc_num']][str(order_data['position'])]:
-                    #     json_data[order_data['acc_num']][str(order_data['position'])]['avg_price'] = 0
-                    #
-                    #     with open('position.json', 'w', encoding="UTF8") as f:
-                    #         json.dump(json_data, f, ensure_ascii=False, indent=4)
-
-
-                    # if json_data[order_data['acc_num']][str(order_data['position'])]['quant'] == 0 and (
-                    #         order_data['type'] == self.CLEAR_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL):
-                    #
-                    #     temp = {}
-                    #     temp['type'] = -1
-                    #
-                    #     print('301203812038210938912830921830912893102923819023 먹힘 : ' + str(order_data['position']))
-                    #
-                    #     self.complete_order_queue_dict[order_data['acc_num']].append(temp)
-                    #
-                    # else:
                     if order_data['type'] == self.ENTER_BUY_SIGNAL or order_data['type'] == self.CLEAR_SELL_SIGNAL:
                         result = self.kiwoom.send_order('시장가매수', str(order_data['position']), order_data['acc_num'], 2, self.sCode,
                                                         int(order_data['quant']), '0', '0', '1', '')
@@ -672,7 +653,7 @@ class KiwoomAutoTrader():
         if type == 'clear':
             temp = [info['trade_type'], info['strategy_name'], info['sCode'], info['kiwoom_id'], info['acc_num'], info['quant'], info['enter_type'],
                     info['enter_time'], info['enter_price'], info['enter_indicator'], info['clear_type'], info['clear_time'], info['clear_price'],
-                    info['clear_indicator'], info['program_price_profit_tick'], info['real_price_profit_tick'], info['total_profit_dollar']]
+                    info['clear_indicator'], info['program_price_profit_tick'], info['real_price_profit_tick'], info['real_price_total_profit_tick'], info['total_profit_dollar']]
 
         elif type == 'enter':
             temp = [info['enter_id'], info['trade_type'], info['strategy_name'], info['sCode'], info['kiwoom_id'], info['acc_num'],

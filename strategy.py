@@ -1233,14 +1233,14 @@ class Strategy():
                         low = df[EP_name].iloc[idx]
 
                 h1 = high
-                l2 = low
+                l1 = low
 
-                mid = round((high + low) / 2, 2)
+                mid = round((h1 + l1) / 2, 2)
 
-                h2 = round((high + mid) / 2, 2)
-                l1 = round((mid + l2) / 2, 2)
+                h2 = round((h1 + mid) / 2, 2)
+                l2 = round((mid + l1) / 2, 2)
 
-                high_low_list = [h1, h2, mid, l1, l2]
+                high_low_list = [h1, h2, mid, l2, l1]
 
                 price = df['close'].iloc[-1] if info['price_type'] == 'real' else df['close'].iloc[-2]
 
@@ -1276,12 +1276,10 @@ class Strategy():
                     self.telegram_msg += '지표명 : ' + info['name'] + '(' + info['prabolic_value_one'] + '/' + info[
                         'prabolic_value_two'] + ')\n'
 
-                    self.telegram_msg += '봉타입 : 실시간\n' if info['time_type'] == 'real' else '봉타입 : 직전봉\n'
-
-                    word_high_low_type_dict = {"0": "H1", "1": "H2", "2": "M", "3": "L1", "4": "L2"}
+                    word_high_low_type_dict = {"0": "H1", "1": "H2", "2": "M", "3": "L2", "4": "L1"}
                     word_time_dict = {'day': '일', 'min': '분', 'tick': '틱'}
 
-                    if info['time_type'] == 'real':
+                    if info['price_type'] == 'real':
                         self.telegram_msg += info['indicator_unit'] + word_time_dict[
                             info['indicator_time_type']] + '봉 현재가격 : ' + str(price) + '\n'
                     else:
@@ -2801,7 +2799,8 @@ class Strategy():
                     info['enter_indicator'] = self.excel_enter_indicator
 
                     info['program_price_profit_tick'] = str(profit) + '(' + str(profit * self.quant) + ')'
-                    info['real_price_profit_tick'] = str(profit) + '(' + str(profit * self.quant) + ')'
+                    info['real_price_profit_tick'] = profit
+                    info['real_price_total_profit_tick'] = profit * self.quant
                     info['total_profit_dollar'] = profit * self.tick_value * self.quant
 
                     self.parent.add_trade_info_to_excel('clear', info)
@@ -2950,7 +2949,8 @@ class Strategy():
                     info['enter_indicator'] = self.excel_enter_indicator
 
                     info['program_price_profit_tick'] = str(program_profit) + '(' + str(program_profit * self.quant) + ')'
-                    info['real_price_profit_tick'] = str(real_profit) + '(' + str(real_profit * self.quant) + ')'
+                    info['real_price_profit_tick'] = real_profit
+                    info['real_price_total_profit_tick'] = real_profit * self.quant
                     info['total_profit_dollar'] = data['sum_of_profit']
 
                     self.parent.add_trade_info_to_excel('clear', info)

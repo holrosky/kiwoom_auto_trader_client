@@ -1085,7 +1085,7 @@ class KiwoomAPI():
             result = s[s.find('[') + len('['):s.rfind(']')].replace(' ','')
             print(result)
 
-            if result != '0':
+            if result != '0' and result != '107126':
                 self.order_loop = QEventLoop()
                 self.parent.stop_strategy(int(sScrNo), str(sMsg))
 

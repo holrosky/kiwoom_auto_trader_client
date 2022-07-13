@@ -147,6 +147,8 @@ class AWS_mqtt():
                 temp['command'] = 'length_from_auto_trader'
                 temp['queue_length'] = str(len(self.parent.real_data_queue))
                 temp['calc_indicators_length'] = str(self.parent.num_of_calc_indicator)
+                temp['order_length'] = str(len(self.parent.order_queue))
+                temp['waiting_length'] = str(self.parent.num_of_calc_waiting)
 
                 self.publish_message(temp)
 
