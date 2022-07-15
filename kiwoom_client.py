@@ -55,6 +55,7 @@ class KiwoomAutoTrader():
         self.quant_dict = {}
 
         self.already_calced_list = []
+
         self.num_of_calc_indicator = 0
         self.num_of_calc_waiting = 0
         self.current_price = 0
@@ -368,6 +369,7 @@ class KiwoomAutoTrader():
 
                     self.num_of_calc_indicator = len(self.already_calced_list)
                     self.already_calced_list = []
+                    self.already_calced_list = []
 
                     self.check_total_profit_clear()
 
@@ -663,7 +665,8 @@ class KiwoomAutoTrader():
         self.excel_updater.add_trade_info_to_excel_queue(type, temp, info['enter_id'])
 
     def print_chart_data(self, msg):
-        print(self.get_df(msg['type'], msg['unit']))
+        with pandas.option_context('display.max_rows', None, 'display.max_columns',None):
+            print(self.get_df(msg['type'], msg['unit']))
 
     def save_chart_data(self, msg):
         df = self.get_df(msg['type'], msg['unit'])

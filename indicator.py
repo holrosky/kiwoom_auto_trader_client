@@ -3,6 +3,7 @@ import os
 import sys
 import time
 
+import numpy
 import pandas
 #import modin.pandas as pandas
 import parabolic
@@ -11,6 +12,7 @@ import parabolic
 class Indicator():
     def __init__(self):
         self.pars = parabolic.Parabolic()
+        self.parabolic_high_low_dict = {}
 
     def get_ma(self, df, period = 5, calc_only_last=False):
         if calc_only_last:
@@ -76,6 +78,79 @@ class Indicator():
 
                 for i in range(len(df)):
                     df[PSAR_name].iloc[i], df[EP_name].iloc[i], df[AF_name].iloc[i] = self.pars.get_psar(df['high'].iloc[i], df['low'].iloc[i])
+
+            return df
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(e, fname, exc_tb.tb_lineno)
+
+    def get_parabolic_high_low(self, df, af=0.02, af_max=0.2):
+        try:
+            if 'H1_' + str(af) + '_' + str(af_max) not in df:
+                df['H1_' + str(af) + '_' + str(af_max)] = numpy.nan
+                df['H2_' + str(af) + '_' + str(af_max)] = numpy.nan
+                df['M_' + str(af) + '_' + str(af_max)] = numpy.nan
+                df['L2_' + str(af) + '_' + str(af_max)] = numpy.nan
+                df['L1_' + str(af) + '_' + str(af_max)] = numpy.nan
+                df['calced_' + str(af) + '_' + str(af_max)] = False
+
+            PSAR_name = 'PSAR_' + str(af) + '_' + str(af_max)
+            EP_name = 'EP_' + str(af) + '_' + str(af_max)
+
+            current_trend = 'bull' if df[PSAR_name].iloc[-1] < df['close'].iloc[-1] else 'bear'
+            last_trend = 'bull' if df[PSAR_name].iloc[-2] < df['close'].iloc[-2] else 'bear'
+
+            if pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-1]) and not pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-2]):
+                df['H1_' + str(af) + '_' + str(af_max)].iloc[-1] = df['H1_' + str(af) + '_' + str(af_max)].iloc[-2]
+                df['H2_' + str(af) + '_' + str(af_max)].iloc[-1] = df['H2_' + str(af) + '_' + str(af_max)].iloc[-2]
+                df['M_' + str(af) + '_' + str(af_max)].iloc[-1] = df['M_' + str(af) + '_' + str(af_max)].iloc[-2]
+                df['L2_' + str(af) + '_' + str(af_max)].iloc[-1] = df['L2_' + str(af) + '_' + str(af_max)].iloc[-2]
+                df['L1_' + str(af) + '_' + str(af_max)].iloc[-1] = df['L1_' + str(af) + '_' + str(af_max)].iloc[-2]
+                df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] = False
+
+            if pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-1]) and pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-2]) or \
+                    (current_trend != last_trend and (not df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] or pandas.isna(df['calced' + str(af) + '_' + str(af_max)].iloc[-1]))):
+
+                df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] = True
+
+                if current_trend == 'bull':
+                    idx = -1
+                    while df[PSAR_name].iloc[idx] < df['close'].iloc[idx]:
+                        idx -= 1
+
+                    low = df[EP_name].iloc[idx]
+
+                    while df[PSAR_name].iloc[idx] > df['close'].iloc[idx]:
+                        idx -= 1
+
+                    high = df[EP_name].iloc[idx]
+
+                else:
+                    idx = -1
+                    while df[PSAR_name].iloc[idx] > df['close'].iloc[idx]:
+                        idx -= 1
+
+                    high = df[EP_name].iloc[idx]
+
+                    while df[PSAR_name].iloc[idx] < df['close'].iloc[idx]:
+                        idx -= 1
+
+                    low = df[EP_name].iloc[idx]
+
+                h1 = high
+                l1 = low
+
+                mid = round((h1 + l1) / 2, 2)
+
+                h2 = round((h1 + mid) / 2, 2)
+                l2 = round((mid + l1) / 2, 2)
+
+                df['H1_' + str(af) + '_' + str(af_max)].iloc[-1] = h1
+                df['H2_' + str(af) + '_' + str(af_max)].iloc[-1] = h2
+                df['M_' + str(af) + '_' + str(af_max)].iloc[-1] = mid
+                df['L2_' + str(af) + '_' + str(af_max)].iloc[-1] = l2
+                df['L1_' + str(af) + '_' + str(af_max)].iloc[-1] = l1
 
             return df
         except Exception as e:
