@@ -462,9 +462,11 @@ class Strategy():
 
                                 else:
                                     clear_meet = False
+                                    self.or_strategy_dict = {}
 
                                     if self.is_there_ai_clear:
                                         clear_list = self.strategy_json['ai_clear']
+
 
                                         for each in clear_list:
                                             if self.ai_indicator_check(each) == self.CONDITION_MEET:
@@ -474,7 +476,6 @@ class Strategy():
                                     else:
                                         clear_list = self.strategy_json['clear_buy'] if self.enter_type == '매수' else self.strategy_json[
                                             'clear_sell']
-
 
                                         for each in clear_list:
                                             if self.indicator_check(each) == self.CONDITION_MEET:

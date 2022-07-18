@@ -110,7 +110,7 @@ class Indicator():
                 df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] = False
 
             if pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-1]) and pandas.isna(df['H1_' + str(af) + '_' + str(af_max)].iloc[-2]) or \
-                    (current_trend != last_trend and (not df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] or pandas.isna(df['calced' + str(af) + '_' + str(af_max)].iloc[-1]))):
+                    (current_trend != last_trend and (not df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] or pandas.isna(df['calced_' + str(af) + '_' + str(af_max)].iloc[-1]))):
 
                 df['calced_' + str(af) + '_' + str(af_max)].iloc[-1] = True
 
