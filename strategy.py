@@ -873,116 +873,128 @@ class Strategy():
 
 
             elif info['name'] == 'Pivot-직전봉':
-                df = self.parent.get_df('day', '0')
-                df = self.indicator.get_pivot(df)
+                if info['name'] not in self.or_strategy_dict:
+                    self.or_strategy_dict[info['name']] = False
 
-                current_val = df[info['pivot_type']].iloc[-1]
+                if not self.or_strategy_dict[info['name']]:
+                    df = self.parent.get_df('day', '0')
+                    df = self.indicator.get_pivot(df)
 
-                df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
-                pre_val = df[info['ohcl_type']].iloc[-2]
+                    current_val = df[info['pivot_type']].iloc[-1]
 
-                tick_diff_from = int(info['tick_diff_from'])
-                tick_diff_to = int(info['tick_diff_to'])
+                    df = self.parent.get_df(info['indicator_time_type'], int(info['indicator_unit']))
+                    pre_val = df[info['ohcl_type']].iloc[-2]
 
-                diff_val = round(current_val - pre_val, 2)
+                    tick_diff_from = int(info['tick_diff_from'])
+                    tick_diff_to = int(info['tick_diff_to'])
 
-                # print(self.telegram_msg)
+                    diff_val = round(current_val - pre_val, 2)
 
-                if self.has_position:
-                    profit = abs(self.current_price - self.enter_price)
-                    profit = int(profit // self.tick_unit)
+                    # print(self.telegram_msg)
 
-                    if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
-                            self.enter_type == '매도' and self.enter_price < self.current_price):
-                        profit = profit * -1
+                    if self.has_position:
+                        profit = abs(self.current_price - self.enter_price)
+                        profit = int(profit // self.tick_unit)
 
-                    target_clear_tick_from = int(info['target_clear_tick_from'])
-                    target_clear_tick_to = int(info['target_clear_tick_to'])
+                        if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
+                                self.enter_type == '매도' and self.enter_price < self.current_price):
+                            profit = profit * -1
 
-                    if target_clear_tick_from <= profit <= target_clear_tick_to:
-                        pass
+                        target_clear_tick_from = int(info['target_clear_tick_from'])
+                        target_clear_tick_to = int(info['target_clear_tick_to'])
+
+                        if target_clear_tick_from <= profit <= target_clear_tick_to:
+                            pass
+                        else:
+                            return self.CONDITION_FAIL
+
+                    if tick_diff_from <= int(diff_val // self.tick_unit) and int(
+                            diff_val // self.tick_unit) <= tick_diff_to:
+
+                        self.telegram_msg += '==============\n'
+
+                        self.telegram_msg += '지표명 : ' + info['name'] + '\n'
+
+                        self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
+
+                        word_ohcl_dict = {'open': '시가', 'high': '고가', 'close': '종가', 'low': '저가'}
+
+                        word_pivot_dict = {'second_resistance': '2차저항', 'first_resistance': '1차저항', 'pivot_point': '중심선', 'first_support': '1차지지', 'second_support': '2차지지'}
+
+                        word_time_type_dict = {'day': '일', 'min': '분', 'tick': '틱'}
+
+                        self.telegram_msg += '피봇 ' + str(word_pivot_dict[info['pivot_type']]) + ' : ' + str(current_val) + '\n'
+
+                        self.telegram_msg += info['indicator_unit'] + str(word_time_type_dict[info['indicator_time_type']]) + '봉 직전봉 ' + word_ohcl_dict[info['ohcl_type']] + ' : ' + str(pre_val) + '\n'
+
+                        self.telegram_msg += '두 값 차이 : ' + str(diff_val) + '\n'
+                        self.telegram_msg += '두 값 틱차이 : ' + str(int(diff_val // self.tick_unit)) + '\n'
+                        self.telegram_msg += '틱 범위 : ' + str(tick_diff_from) + ' ~ ' + str(tick_diff_to) + '\n'
+
+                        self.or_strategy_dict[info['name']] = True
+
+                        return self.CONDITION_MEET
                     else:
-                        return self.CONDITION_FAIL
-
-                if tick_diff_from <= int(diff_val // self.tick_unit) and int(
-                        diff_val // self.tick_unit) <= tick_diff_to:
-
-                    self.telegram_msg += '==============\n'
-
-                    self.telegram_msg += '지표명 : ' + info['name'] + '\n'
-
-                    self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
-
-                    word_ohcl_dict = {'open': '시가', 'high': '고가', 'close': '종가', 'low': '저가'}
-
-                    word_pivot_dict = {'second_resistance': '2차저항', 'first_resistance': '1차저항', 'pivot_point': '중심선', 'first_support': '1차지지', 'second_support': '2차지지'}
-
-                    word_time_type_dict = {'day': '일', 'min': '분', 'tick': '틱'}
-
-                    self.telegram_msg += '피봇 ' + str(word_pivot_dict[info['pivot_type']]) + ' : ' + str(current_val) + '\n'
-
-                    self.telegram_msg += info['indicator_unit'] + str(word_time_type_dict[info['indicator_time_type']]) + '봉 직전봉 ' + word_ohcl_dict[info['ohcl_type']] + ' : ' + str(pre_val) + '\n'
-
-                    self.telegram_msg += '두 값 차이 : ' + str(diff_val) + '\n'
-                    self.telegram_msg += '두 값 틱차이 : ' + str(int(diff_val // self.tick_unit)) + '\n'
-                    self.telegram_msg += '틱 범위 : ' + str(tick_diff_from) + ' ~ ' + str(tick_diff_to) + '\n'
-
-                    return self.CONDITION_MEET
-                else:
-                    return self.CONDITION_FAIL
+                        return self.CONDITION_PASS
 
             elif info['name'] == 'Pivot-현재가':
-                df = self.parent.get_df('day', '0')
-                df = self.indicator.get_pivot(df)
+                if info['name'] not in self.or_strategy_dict:
+                    self.or_strategy_dict[info['name']] = False
 
-                current_val = df[info['pivot_type']].iloc[-1]
-                current_price = df['close'].iloc[-1]
+                if not self.or_strategy_dict[info['name']]:
+                    df = self.parent.get_df('day', '0')
+                    df = self.indicator.get_pivot(df)
 
-                tick_diff_from = int(info['tick_diff_from'])
-                tick_diff_to = int(info['tick_diff_to'])
+                    current_val = df[info['pivot_type']].iloc[-1]
+                    current_price = df['close'].iloc[-1]
 
-                diff_val = round(current_val - current_price, 2)
+                    tick_diff_from = int(info['tick_diff_from'])
+                    tick_diff_to = int(info['tick_diff_to'])
 
-                if self.has_position:
-                    profit = abs(self.current_price - self.enter_price)
-                    profit = int(profit // self.tick_unit)
+                    diff_val = round(current_val - current_price, 2)
 
-                    if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
-                            self.enter_type == '매도' and self.enter_price < self.current_price):
-                        profit = profit * -1
+                    if self.has_position:
+                        profit = abs(self.current_price - self.enter_price)
+                        profit = int(profit // self.tick_unit)
 
-                    target_clear_tick_from = int(info['target_clear_tick_from'])
-                    target_clear_tick_to = int(info['target_clear_tick_to'])
+                        if (self.enter_type == '매수' and self.enter_price > self.current_price) or (
+                                self.enter_type == '매도' and self.enter_price < self.current_price):
+                            profit = profit * -1
 
-                    if target_clear_tick_from <= profit <= target_clear_tick_to:
-                        pass
+                        target_clear_tick_from = int(info['target_clear_tick_from'])
+                        target_clear_tick_to = int(info['target_clear_tick_to'])
+
+                        if target_clear_tick_from <= profit <= target_clear_tick_to:
+                            pass
+                        else:
+                            return self.CONDITION_FAIL
+
+                    if tick_diff_from <= int(diff_val // self.tick_unit) and int(
+                            diff_val // self.tick_unit) <= tick_diff_to:
+
+                        self.telegram_msg += '==============\n'
+
+                        self.telegram_msg += '지표명 : ' + info['name'] + '\n'
+
+                        self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
+
+                        word_pivot_dict = {'second_resistance': '2차저항', 'first_resistance': '1차저항', 'pivot_point': '중심선',
+                                           'first_support': '1차지지', 'second_support': '2차지지'}
+
+                        self.telegram_msg += '피봇 ' + str(word_pivot_dict[info['pivot_type']]) + ' : ' + str(
+                            current_val) + '\n'
+
+                        self.telegram_msg += '현재 가격 : ' + str(current_price) + '\n'
+
+                        self.telegram_msg += '두 값 차이 : ' + str(diff_val) + '\n'
+                        self.telegram_msg += '두 값 틱차이 : ' + str(int(diff_val // self.tick_unit)) + '\n'
+                        self.telegram_msg += '틱 범위 : ' + str(tick_diff_from) + ' ~ ' + str(tick_diff_to) + '\n'
+
+                        self.or_strategy_dict[info['name']] = True
+
+                        return self.CONDITION_MEET
                     else:
-                        return self.CONDITION_FAIL
-
-                if tick_diff_from <= int(diff_val // self.tick_unit) and int(
-                        diff_val // self.tick_unit) <= tick_diff_to:
-
-                    self.telegram_msg += '==============\n'
-
-                    self.telegram_msg += '지표명 : ' + info['name'] + '\n'
-
-                    self.telegram_msg += '가장 최근 봉시간 : ' + df['date'].iloc[-1] + '\n'
-
-                    word_pivot_dict = {'second_resistance': '2차저항', 'first_resistance': '1차저항', 'pivot_point': '중심선',
-                                       'first_support': '1차지지', 'second_support': '2차지지'}
-
-                    self.telegram_msg += '피봇 ' + str(word_pivot_dict[info['pivot_type']]) + ' : ' + str(
-                        current_val) + '\n'
-
-                    self.telegram_msg += '현재 가격 : ' + str(current_price) + '\n'
-
-                    self.telegram_msg += '두 값 차이 : ' + str(diff_val) + '\n'
-                    self.telegram_msg += '두 값 틱차이 : ' + str(int(diff_val // self.tick_unit)) + '\n'
-                    self.telegram_msg += '틱 범위 : ' + str(tick_diff_from) + ' ~ ' + str(tick_diff_to) + '\n'
-
-                    return self.CONDITION_MEET
-                else:
-                    return self.CONDITION_FAIL
+                        return self.CONDITION_PASS
 
             elif info['name'] == '파라볼릭':
                 test_flag = False
@@ -1073,8 +1085,7 @@ class Strategy():
 
                             else:
                                 if temp == info:
-                                    if self.parabolic_same_bar_enter_times >= int(
-                                            info['same_bar_enter_times']) and not self.has_position:
+                                    if self.parabolic_same_bar_enter_times >= int(info['same_bar_enter_times']):
                                         temp_msg = '!!!시뮬레이션 전략입니다!!!\n' if self.is_simulation_strategy else ''
                                         temp_msg += '!!!가상매매 중입니다!!!\n' if self.is_virtual_trade() else ''
                                         temp_msg = '전략명 : ' + self.strategy_name + '\n'

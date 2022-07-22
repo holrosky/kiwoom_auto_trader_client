@@ -59,106 +59,109 @@ class KiwoomAPI():
         self.comm_rq_data('종목정보조회', 'opt10001', '', '0101')
 
     def login(self):
-        try:
-            self.kiwoom.dynamicCall('CommConnect(1)')  # 시그널 함수 호출.
+        self.kiwoom.dynamicCall('CommConnect(1)')  # 시그널 함수 호출.
 
-            is_test_mode = False
-
-            window_visible = False
-
-            while not window_visible:
-                try:
-                    win1 = gw.getWindowsWithTitle('Login')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
-                    window_visible = True
-                except Exception as e:
-                    time.sleep(0.2)
-            win1.activate()  # 윈도우 활성화
-
-            pyautogui.press('enter')
-            time.sleep(0.2)
-            pyautogui.press('enter')
-            time.sleep(2)
-
+        while True:
             try:
-                win2 = gw.getWindowsWithTitle('글로벌')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
-                is_test_mode = True
-                win2.activate()  # 윈도우 활성화
-            except Exception as e:
+                window_visible = False
+
+                while not window_visible:
+                    try:
+                        win1 = gw.getWindowsWithTitle('Login')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
+                        window_visible = True
+                    except Exception as e:
+                        time.sleep(0.2)
+                win1.activate()  # 윈도우 활성화
+
+                pyautogui.press('enter')
                 time.sleep(0.2)
                 pyautogui.press('enter')
                 time.sleep(2)
-                win2 = gw.getWindowsWithTitle('글로벌')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
-                is_test_mode = False
-                win2.activate()  # 윈도우 활성화
-                print('caution')
+
+                try:
+                    win2 = gw.getWindowsWithTitle('글로벌')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
+                    is_test_mode = True
+                    win2.activate()  # 윈도우 활성화
+                except Exception as e:
+                    time.sleep(0.2)
+                    pyautogui.press('enter')
+                    time.sleep(2)
+                    win2 = gw.getWindowsWithTitle('글로벌')[0]  # 윈도우 타이틀에 Chrome 이 포함된 모든 윈도우 수집, 리스트로 리턴
+                    is_test_mode = False
+                    win2.activate()  # 윈도우 활성화
+                    print('caution')
+                    time.sleep(0.2)
+
+
                 time.sleep(0.2)
+                pyautogui.press('enter')
 
+                print(is_test_mode)
 
-            time.sleep(0.2)
-            pyautogui.press('enter')
+                with open("config.json", "r", encoding="UTF8") as st_json:
+                    json_data = json.load(st_json)
 
-            print(is_test_mode)
-
-            with open("config.json", "r", encoding="UTF8") as st_json:
-                json_data = json.load(st_json)
-
-            pyautogui.write(json_data['client_id'], interval=0.1)
-            time.sleep(0.2)
-            if len(json_data['client_id']) < 8:
-                pyautogui.press('tab')
+                pyautogui.write(json_data['client_id'], interval=0.1)
                 time.sleep(0.2)
+                if len(json_data['client_id']) < 8:
+                    pyautogui.press('tab')
+                    time.sleep(0.2)
 
-            if json_data['test_mode'] == 'yes':
-                if not is_test_mode:
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('space')
+                if json_data['test_mode'] == 'yes':
+                    if not is_test_mode:
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('space')
 
-                pyautogui.write(json_data['password'], interval=0.1)
-                pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
+                    pyautogui.write(json_data['password'], interval=0.1)
+                    pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
 
-            elif json_data['test_mode'] == 'no':
-                if is_test_mode:
-                    pyautogui.press('tab')
+                elif json_data['test_mode'] == 'no':
+                    if is_test_mode:
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('tab')
+                        time.sleep(0.2)
+                        pyautogui.press('space')
+
+
+                    pyautogui.write(json_data['password'], interval=0.1)
                     time.sleep(0.2)
                     pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                    pyautogui.press('space')
+                    pyautogui.write(json_data['certificate_password'], interval=0.1)
+                    pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
+
+                #center = pyautogui.locateCenterOnScreen('caution.png')
+                # pyautogui.write('aa6093', interval=0.1)
+                # pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
+                #
+                while self.login_event_loop.isRunning():
+                    time.sleep(0.1)
 
 
-                pyautogui.write(json_data['password'], interval=0.1)
-                time.sleep(0.2)
-                pyautogui.press('tab')
-                pyautogui.write(json_data['certificate_password'], interval=0.1)
-                pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
+                self.login_event_loop.exec_()
 
-            #center = pyautogui.locateCenterOnScreen('caution.png')
-            # pyautogui.write('aa6093', interval=0.1)
-            # pyautogui.press('enter')  # enter 키를 3초에 한번씩 세번 입력합니다.
-            #
-            while self.login_event_loop.isRunning():
-
-                time.sleep(0.1)
-            self.login_event_loop.exec_()
-        except Exception as e:
-            print(traceback.format_exc())
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(e, fname, exc_tb.tb_lineno)
+                break
+            except Exception as e:
+                print(traceback.format_exc())
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e, fname, exc_tb.tb_lineno)
+                self.login_event_loop.exit()
 
 
     # def comm_connect(self):

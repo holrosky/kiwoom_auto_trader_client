@@ -31,7 +31,7 @@ class Parabolic():
             self.pars = round(self.pars + (self.af * (self.ep - self.pars)), 2)
             #self.trend = 'bull'
 
-            if low < self.pars:
+            if low <= self.pars:
                 self.trend = "bear"
                 self.pars = self.ep
                 self.ep = low
@@ -46,7 +46,7 @@ class Parabolic():
             self.pars = round(self.pars - (self.af * (self.pars - self.ep)), 2)
             #self.trend = 'bear'
 
-            if high > self.pars:
+            if high >= self.pars:
                 self.trend = "bull"
                 self.pars = self.ep
                 self.ep = high
